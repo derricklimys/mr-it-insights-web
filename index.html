@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr IT Insights — Invoices</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://accounts.google.com/gsi/client" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <h1>Mr IT Insights <span class="sub">Invoices</span></h1>
+  <div id="auth-area">
+    <button id="signin-btn" class="btn btn-primary">Sign in with Google</button>
+    <span id="signed-in-as" class="hidden"></span>
+  </div>
+</header>
+
+<nav id="tabs" class="tabs hidden">
+  <button class="tab-btn active" data-tab="review">Review <span id="review-count" class="badge"></span></button>
+  <button class="tab-btn" data-tab="reports">Reports</button>
+</nav>
+
+<main id="app" class="hidden">
+  <section id="tab-review" class="tab-panel active">
+    <div class="review-layout">
+      <aside id="invoice-list" class="invoice-list">
+        <p class="loading">Loading invoices…</p>
+      </aside>
+      <div id="invoice-detail" class="invoice-detail">
+        <p class="empty-state">Select an invoice on the left to review it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-reports" class="tab-panel">
+    <div class="reports-layout">
+      <nav class="report-tabs">
+        <button class="report-tab-btn active" data-report="margin">Margin</button>
+        <button class="report-tab-btn" data-report="trend">Cost Trend</button>
+        <button class="report-tab-btn" data-report="redflag">Still Buying, Not Selling</button>
+      </nav>
+      <div id="report-status" class="report-status"></div>
+      <div id="report-margin" class="report-panel active"></div>
+      <div id="report-trend" class="report-panel"></div>
+      <div id="report-redflag" class="report-panel"></div>
+    </div>
+  </section>
+</main>
+
+<p id="status-line" class="status-line"></p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="config.js"></script>
+<script src="drive.js"></script>
+<script src="review.js"></script>
+<script src="reports.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
