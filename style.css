@@ -79,7 +79,25 @@ main { padding: 20px; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-.review-layout { display: flex; gap: 16px; height: calc(100vh - 140px); }
+.review-layout { display: flex; gap: 10px; height: calc(100vh - 140px); }
+
+.sidebar-wrap { display: flex; gap: 6px; flex-shrink: 0; }
+.sidebar-toggle {
+  flex-shrink: 0;
+  width: 22px;
+  height: 40px;
+  align-self: flex-start;
+  margin-top: 2px;
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.sidebar-toggle:hover { background: var(--surface); }
+.sidebar-wrap.collapsed .sidebar-toggle { transform: rotate(180deg); }
+
 .invoice-list {
   width: 280px;
   flex-shrink: 0;
@@ -88,6 +106,15 @@ main { padding: 20px; }
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 6px;
+  transition: width 0.15s ease, opacity 0.1s ease;
+}
+.sidebar-wrap.collapsed .invoice-list {
+  width: 0;
+  padding: 0;
+  border-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 .invoice-row {
   display: flex;
@@ -113,19 +140,26 @@ main { padding: 20px; }
 
 .invoice-detail {
   flex: 1;
-  overflow-y: auto;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 16px;
 }
-.detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-shrink: 0; }
 .detail-header h2 { font-size: 16px; margin: 0; }
 
-.detail-split { display: flex; gap: 16px; height: calc(100% - 40px); }
-.pdf-pane { flex: 1; min-width: 0; }
+/* The PDF pane keeps a fixed height and never scrolls with the page - only
+   .lines-table-wrap scrolls internally, so the scan stays visible no matter
+   how far down the line-item list you are. */
+.detail-split { display: flex; gap: 16px; flex: 1; min-height: 0; }
+.pdf-pane { flex: 1.2; min-width: 0; height: 100%; }
 .pdf-pane iframe { width: 100%; height: 100%; border: 1px solid var(--line); border-radius: 6px; }
-.lines-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lines-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.lines-table-wrap { flex: 1; overflow-y: auto; min-height: 0; }
 
 .lines-table, .report-table {
   width: 100%;
@@ -149,7 +183,7 @@ main { padding: 20px; }
 .lines-table input:hover, .lines-table input:focus { border-color: var(--line); background: var(--surface); }
 .lines-table tr.low-confidence { background: var(--warn-soft); }
 
-.detail-actions { margin-top: 12px; display: flex; align-items: center; gap: 10px; }
+.detail-actions { margin-top: 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
 .reports-layout { max-width: 1000px; }
 .report-tabs { display: flex; gap: 8px; margin-bottom: 14px; }

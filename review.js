@@ -18,14 +18,37 @@ const Review = {
       (f) => f.mimeType === "application/vnd.google-apps.folder",
     );
 
+    let loaded = 0;
+    const updateProgress = () => {
+      loaded += 1;
+      listEl.innerHTML = `<p class="loading">Loading invoices… (${loaded}/${folders.length})</p>`;
+    };
+
+    // One invoice's folder listing + JSON download is 2 round trips; doing
+    // that for all 45 invoices one at a time in series is what made this
+    // feel stuck for a minute or two - running them concurrently instead
+    // turns ~90 sequential round trips into one wave of parallel ones.
+    const results = await Promise.allSettled(
+      folders.map(async (folder) => {
+        const children = await Drive.listChildren(folder.id);
+        const jsonFile = children.find((c) => c.name === "invoice.json");
+        const pdfFile = children.find((c) => c.name === "invoice.pdf");
+        updateProgress();
+        if (!jsonFile) return null;
+        const record = JSON.parse(await Drive.downloadText(jsonFile.id));
+        return { id: folder.id, folderId: folder.id, jsonFileId: jsonFile.id, pdfFileId: pdfFile ? pdfFile.id : null, record };
+      }),
+    );
+
     const invoices = [];
-    for (const folder of folders) {
-      const children = await Drive.listChildren(folder.id);
-      const jsonFile = children.find((c) => c.name === "invoice.json");
-      const pdfFile = children.find((c) => c.name === "invoice.pdf");
-      if (!jsonFile) continue;
-      const record = JSON.parse(await Drive.downloadText(jsonFile.id));
-      invoices.push({ id: folder.id, folderId: folder.id, jsonFileId: jsonFile.id, pdfFileId: pdfFile ? pdfFile.id : null, record });
+    const failures = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === "fulfilled" && r.value) invoices.push(r.value);
+      else if (r.status === "rejected") failures.push(`${folders[i].name}: ${r.reason.message}`);
+    }
+    if (failures.length) {
+      setStatus(`${failures.length} invoice(s) failed to load: ${failures.join("; ")}`, true);
     }
 
     invoices.sort((a, b) => {
@@ -91,13 +114,15 @@ const Review = {
           ${pdfUrl ? `<iframe src="${pdfUrl}" title="Invoice PDF"></iframe>` : `<p class="empty-state">No PDF found.</p>`}
         </div>
         <div class="lines-pane">
-          <table class="lines-table">
-            <thead><tr>
-              <th>Description</th><th>Match</th><th>Product</th>
-              <th>Qty</th><th>Unit Cost</th><th>True Cost</th><th>Conf.</th>
-            </tr></thead>
-            <tbody id="lines-tbody"></tbody>
-          </table>
+          <div class="lines-table-wrap">
+            <table class="lines-table">
+              <thead><tr>
+                <th>Description</th><th>Match</th><th>Product</th>
+                <th>Qty</th><th>Unit Cost</th><th>True Cost</th><th>Conf.</th>
+              </tr></thead>
+              <tbody id="lines-tbody"></tbody>
+            </table>
+          </div>
           <div class="detail-actions">
             <button id="save-btn" class="btn btn-primary">Save &amp; Mark Confirmed</button>
             <span id="save-status"></span>
