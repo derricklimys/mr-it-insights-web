@@ -13,6 +13,8 @@
   --warn: #8C6015;
   --warn-soft: #F1E6C8;
   --error: #A23B3B;
+  --info: #3B5B77;
+  --info-soft: #DCE6ED;
 }
 
 * { box-sizing: border-box; }
@@ -137,6 +139,7 @@ main { padding: 20px; }
 
 .badge-confirmed { background: var(--ok-soft); color: var(--ok); }
 .badge-needs_review { background: var(--warn-soft); color: var(--warn); }
+.badge-uploaded { background: var(--info-soft); color: var(--info); }
 
 .invoice-detail {
   flex: 1;

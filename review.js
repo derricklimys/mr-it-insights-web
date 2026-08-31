@@ -52,7 +52,8 @@ const Review = {
     }
 
     invoices.sort((a, b) => {
-      if (a.record.status !== b.record.status) return a.record.status === "needs_review" ? -1 : 1;
+      const rankDiff = statusRank(a.record.status) - statusRank(b.record.status);
+      if (rankDiff !== 0) return rankDiff;
       return (b.record.invoice_date || "").localeCompare(a.record.invoice_date || "");
     });
 
@@ -62,8 +63,8 @@ const Review = {
 
   renderList() {
     const listEl = document.getElementById("invoice-list");
-    const needsReview = this.invoices.filter((i) => i.record.status === "needs_review").length;
-    document.getElementById("review-count").textContent = needsReview ? `(${needsReview})` : "";
+    const needingAttention = this.invoices.filter((i) => i.record.status !== "confirmed").length;
+    document.getElementById("review-count").textContent = needingAttention ? `(${needingAttention})` : "";
 
     if (!this.invoices.length) {
       listEl.innerHTML = `<p class="empty-state">No invoices found.</p>`;
@@ -74,12 +75,14 @@ const Review = {
       .map((inv) => {
         const r = inv.record;
         const cls = inv.id === this.selectedId ? "invoice-row selected" : "invoice-row";
+        const supplier = r.supplier || "New capture - not yet read";
+        const meta = r.status === "uploaded" ? "Awaiting extraction" : `${r.invoice_number || ""} · ${r.invoice_date || ""}`;
         return `
         <button class="${cls}" data-id="${inv.id}">
-          <span class="badge badge-${r.status}">${r.status === "confirmed" ? "OK" : "review"}</span>
+          <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
           <span class="inv-main">
-            <span class="inv-supplier">${escapeHtml(r.supplier)}</span>
-            <span class="inv-meta">${escapeHtml(r.invoice_number)} · ${escapeHtml(r.invoice_date)}</span>
+            <span class="inv-supplier">${escapeHtml(supplier)}</span>
+            <span class="inv-meta">${escapeHtml(meta)}</span>
           </span>
         </button>`;
       })
@@ -104,15 +107,29 @@ const Review = {
     }
 
     const r = inv.record;
+    const title = r.supplier ? `${escapeHtml(r.supplier)} — ${escapeHtml(r.invoice_number || "")}` : "New capture - not yet read";
+    const pdfPane = `<div class="pdf-pane">
+      ${pdfUrl ? `<iframe src="${pdfUrl}#navpanes=0" title="Invoice PDF"></iframe>` : `<p class="empty-state">No PDF found.</p>`}
+    </div>`;
+
+    if (r.status === "uploaded" && r.line_items.length === 0) {
+      detail.innerHTML = `
+        <div class="detail-header">
+          <h2>${title}</h2>
+          <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
+        </div>
+        <p class="signal-reason">Captured ${escapeHtml(r.captured_by ? "by " + r.captured_by : "")} ${escapeHtml(r.captured_at || "")} - not read into line items yet. This gets processed manually in a batch, same as the original invoices.</p>
+        <div class="detail-split">${pdfPane}<div class="lines-pane"></div></div>`;
+      return;
+    }
+
     detail.innerHTML = `
       <div class="detail-header">
-        <h2>${escapeHtml(r.supplier)} — ${escapeHtml(r.invoice_number)}</h2>
-        <span class="badge badge-${r.status}">${r.status}</span>
+        <h2>${title}</h2>
+        <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
       </div>
       <div class="detail-split">
-        <div class="pdf-pane">
-          ${pdfUrl ? `<iframe src="${pdfUrl}#navpanes=0" title="Invoice PDF"></iframe>` : `<p class="empty-state">No PDF found.</p>`}
-        </div>
+        ${pdfPane}
         <div class="lines-pane">
           <div class="lines-table-wrap">
             <table class="lines-table">
@@ -176,6 +193,16 @@ const Review = {
     }
   },
 };
+
+// Newest, least-processed captures surface first: nothing read yet, then
+// needs a human look, then already confirmed.
+function statusRank(status) {
+  return status === "uploaded" ? 0 : status === "needs_review" ? 1 : 2;
+}
+
+function statusLabel(status) {
+  return status === "confirmed" ? "OK" : status === "uploaded" ? "just captured" : "review";
+}
 
 function numOrNull(v) {
   if (v === "" || v === null || v === undefined) return null;
