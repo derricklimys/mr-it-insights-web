@@ -25,9 +25,12 @@
 <main id="app" class="hidden">
   <section id="tab-review" class="tab-panel active">
     <div class="review-layout">
-      <aside id="invoice-list" class="invoice-list">
-        <p class="loading">Loading invoices…</p>
-      </aside>
+      <div id="sidebar-wrap" class="sidebar-wrap">
+        <button id="sidebar-toggle" class="sidebar-toggle" title="Collapse invoice list">&laquo;</button>
+        <aside id="invoice-list" class="invoice-list">
+          <p class="loading">Loading invoices…</p>
+        </aside>
+      </div>
       <div id="invoice-detail" class="invoice-detail">
         <p class="empty-state">Select an invoice on the left to review it.</p>
       </div>

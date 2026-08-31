@@ -29,10 +29,21 @@ const Drive = {
   },
 
   async _fetch(url, options = {}) {
-    const resp = await fetch(url, {
-      ...options,
-      headers: { ...(options.headers || {}), Authorization: `Bearer ${this.accessToken}` },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    let resp;
+    try {
+      resp = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: { ...(options.headers || {}), Authorization: `Bearer ${this.accessToken}` },
+      });
+    } catch (e) {
+      if (e.name === "AbortError") throw new Error(`Drive request timed out after 30s: ${url}`);
+      throw new Error(`Drive request failed (network error): ${e.message}`);
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (!resp.ok) {
       const body = await resp.text();
       throw new Error(`Drive request failed (${resp.status}): ${body}`);

@@ -4,6 +4,16 @@ window.addEventListener("DOMContentLoaded", () => {
   Drive.init(onSignedIn);
   document.getElementById("signin-btn").addEventListener("click", () => Drive.signIn());
 
+  const sidebarWrap = document.getElementById("sidebar-wrap");
+  const sidebarToggle = document.getElementById("sidebar-toggle");
+  const collapsed = localStorage.getItem("mrit_sidebar_collapsed") === "1";
+  sidebarWrap.classList.toggle("collapsed", collapsed);
+  sidebarToggle.addEventListener("click", () => {
+    const isCollapsed = sidebarWrap.classList.toggle("collapsed");
+    sidebarToggle.title = isCollapsed ? "Expand invoice list" : "Collapse invoice list";
+    localStorage.setItem("mrit_sidebar_collapsed", isCollapsed ? "1" : "0");
+  });
+
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
