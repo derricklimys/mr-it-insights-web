@@ -111,7 +111,7 @@ const Review = {
       </div>
       <div class="detail-split">
         <div class="pdf-pane">
-          ${pdfUrl ? `<iframe src="${pdfUrl}" title="Invoice PDF"></iframe>` : `<p class="empty-state">No PDF found.</p>`}
+          ${pdfUrl ? `<iframe src="${pdfUrl}#navpanes=0" title="Invoice PDF"></iframe>` : `<p class="empty-state">No PDF found.</p>`}
         </div>
         <div class="lines-pane">
           <div class="lines-table-wrap">
