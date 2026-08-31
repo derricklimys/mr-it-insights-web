@@ -20,6 +20,9 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".report-tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchReportTab(btn.dataset.report));
   });
+  document.querySelectorAll(".memory-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => switchMemoryTab(btn.dataset.memtab));
+  });
 });
 
 async function onSignedIn() {
@@ -40,6 +43,26 @@ function switchTab(name) {
   document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "reports") loadCurrentReport();
+  if (name === "memory") loadMemoryTab();
+}
+
+let currentMemoryTab = "products";
+function switchMemoryTab(name) {
+  currentMemoryTab = name;
+  document.querySelectorAll(".memory-tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.memtab === name));
+  document.querySelectorAll(".memory-panel").forEach((p) => p.classList.toggle("active", p.id === `memory-${name}`));
+  loadMemoryTab();
+}
+
+async function loadMemoryTab() {
+  try {
+    await Memory.ensureLoaded();
+    if (currentMemoryTab === "products") Memory.renderList();
+    else if (currentMemoryTab === "new") Memory.renderNewProducts();
+  } catch (e) {
+    document.getElementById("memory-status").textContent = "";
+    setStatus(e.message, true);
+  }
 }
 
 let currentReport = "margin";
