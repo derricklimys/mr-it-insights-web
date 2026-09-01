@@ -163,6 +163,11 @@ const Memory = {
       <canvas id="memory-chart" width="900" height="320"></canvas>
     `;
     drawChart(document.getElementById("memory-chart"), p);
+    document.getElementById("memory-detail-modal").classList.remove("hidden");
+  },
+
+  closeDetail() {
+    document.getElementById("memory-detail-modal").classList.add("hidden");
   },
 
   renderNewProducts() {

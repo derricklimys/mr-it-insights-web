@@ -8,14 +8,19 @@ const API_BASE = "https://www.googleapis.com/drive/v3";
 const Drive = {
   accessToken: null,
   tokenClient: null,
+  _silentAttempt: false,
 
   init(onSignedIn) {
     this.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CONFIG.CLIENT_ID,
       scope: CONFIG.SCOPES,
       callback: (resp) => {
+        const wasSilent = this._silentAttempt;
+        this._silentAttempt = false;
         if (resp.error) {
-          setStatus("Sign-in failed: " + resp.error, true);
+          // A failed silent attempt just means "not signed in yet" - show
+          // the Sign in button rather than an alarming error message for it.
+          if (!wasSilent) setStatus("Sign-in failed: " + resp.error, true);
           return;
         }
         this.accessToken = resp.access_token;
@@ -26,6 +31,20 @@ const Drive = {
 
   signIn() {
     this.tokenClient.requestAccessToken();
+  },
+
+  /**
+   * Reloading the page (F5) used to look like being logged out, since the
+   * access token only ever lived in a JS variable. This tries to restore
+   * the session silently - no consent screen - the same way the Android
+   * app's getAccessToken() tries a silent reauthorize() before falling back
+   * to a full sign-in. Works as long as the browser still has an active
+   * Google session and previously-granted consent; if not, it fails quietly
+   * and the Sign in button is still there as the fallback.
+   */
+  trySilentSignIn() {
+    this._silentAttempt = true;
+    this.tokenClient.requestAccessToken({ prompt: "" });
   },
 
   async _fetch(url, options = {}) {

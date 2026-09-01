@@ -3,6 +3,7 @@
 window.addEventListener("DOMContentLoaded", () => {
   Drive.init(onSignedIn);
   document.getElementById("signin-btn").addEventListener("click", () => Drive.signIn());
+  Drive.trySilentSignIn(); // restore the session after a refresh instead of requiring Sign in again
 
   const sidebarWrap = document.getElementById("sidebar-wrap");
   const sidebarToggle = document.getElementById("sidebar-toggle");
@@ -22,6 +23,13 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelectorAll(".memory-tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchMemoryTab(btn.dataset.memtab));
+  });
+
+  const memoryModal = document.getElementById("memory-detail-modal");
+  document.getElementById("memory-detail-close").addEventListener("click", () => Memory.closeDetail());
+  memoryModal.addEventListener("click", (e) => { if (e.target === memoryModal) Memory.closeDetail(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !memoryModal.classList.contains("hidden")) Memory.closeDetail();
   });
 });
 
