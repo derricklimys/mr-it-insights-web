@@ -154,6 +154,7 @@ main { padding: 20px; }
 }
 .detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-shrink: 0; }
 .detail-header h2 { font-size: 16px; margin: 0; }
+.detail-barcode { color: var(--ink-faint); font-size: 12px; margin: 2px 0 0; font-variant-numeric: tabular-nums; }
 
 /* The PDF pane keeps a fixed height and never scrolls with the page - only
    .lines-table-wrap scrolls internally, so the scan stays visible no matter
@@ -227,6 +228,36 @@ main { padding: 20px; }
 .memory-panel.active { display: block; }
 .memory-table tbody tr { cursor: pointer; }
 .memory-table tbody tr:hover { background: var(--surface); }
+
+.insights-lookup { margin-bottom: 16px; }
+.insights-lookup input {
+  font: inherit;
+  width: 100%;
+  max-width: 420px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+.insights-lookup .report-status { margin: 6px 0 0; min-height: 1em; }
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.insight-section {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+.insight-section h3 { font-size: 13px; margin: 0 0 8px; color: var(--ink-soft); }
+.insight-table tbody tr { cursor: pointer; }
+.insight-table tbody tr:hover { background: var(--surface); }
+.insight-table td { vertical-align: top; }
+.insight-barcode { color: var(--ink-faint); font-size: 11px; margin-top: 2px; }
+.insight-value { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .modal-overlay {
   position: fixed;

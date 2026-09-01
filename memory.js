@@ -39,6 +39,23 @@ const Memory = {
     const stockByProduct = {};
     for (const r of stockRows) stockByProduct[r.pid] = r.qty;
 
+    // "Last 30 days" is relative to the newest data actually in the synced
+    // DB, not the browser's clock - the sync can lag behind real time by a
+    // day or more, and this keeps every "recent" figure on the same clock.
+    const latestDataRow = Reports.query("SELECT MAX(Date) as d FROM Document")[0];
+    const latestDataDate = latestDataRow ? latestDataRow.d : null;
+    const last30Rows = latestDataDate
+      ? Reports.query(
+          `SELECT di.ProductId as pid, SUM(di.Quantity) as qty, SUM(di.Total) as revenue
+           FROM DocumentItem di JOIN Document d ON d.Id = di.DocumentId
+           WHERE d.DocumentTypeId = 2 AND d.Date >= date(?, '-30 days')
+           GROUP BY di.ProductId`,
+          [latestDataDate],
+        )
+      : [];
+    const last30ByProduct = {};
+    for (const r of last30Rows) last30ByProduct[r.pid] = { qty: r.qty || 0, revenue: r.revenue || 0 };
+
     const priceByUpc = {};
     for (const [pn, entries] of Object.entries(priceHistory)) {
       const last = entries[entries.length - 1];
@@ -73,13 +90,16 @@ const Memory = {
       const aroniumStock = stockByProduct[r.Id] || 0;
       const reserveQty = reserveEntry ? reserveEntry.quantity : 0;
       const invoiceCosts = invoiceCostsByProduct[r.Id] || [];
+      const combinedStock = aroniumStock + reserveQty;
+      const last30 = last30ByProduct[r.Id] || { qty: 0, revenue: 0 };
+      const daysOfStockLeft = last30.qty > 0 ? combinedStock / (last30.qty / 30) : null;
 
       const signal = computeSignal({
         currentPrice: r.Price,
         priceHistory: priceMatch ? priceMatch.entries : null,
         invoiceCosts,
         monthly,
-        combinedStock: aroniumStock + reserveQty,
+        combinedStock,
       });
 
       return {
@@ -87,8 +107,11 @@ const Memory = {
         priceHistoryPn: priceMatch ? priceMatch.pn : null,
         priceHistory: priceMatch ? priceMatch.entries : [],
         invoiceCosts,
-        monthly, aroniumStock, reserveQty, combinedStock: aroniumStock + reserveQty,
-        signal: signal.type, signalReason: signal.reason, marginPct: signal.marginPct, costSource: signal.costSource,
+        monthly, aroniumStock, reserveQty, combinedStock,
+        reserveUpdatedAt: reserveEntry ? reserveEntry.updated_at : null,
+        last30Qty: last30.qty, last30Revenue: last30.revenue, daysOfStockLeft,
+        signal: signal.type, signalReason: signal.reason, marginPct: signal.marginPct,
+        costSource: signal.costSource, costRising: signal.costRising,
       };
     });
     this.products.sort((a, b) => signalRank(b.signal) - signalRank(a.signal));
@@ -127,10 +150,11 @@ const Memory = {
       return;
     }
     el.innerHTML = tableHtmlWithRowIds(
-      ["", "Product", "Combined Stock", "Margin", "Signal"],
+      ["", "Product", "Barcode", "Combined Stock", "Margin", "Signal"],
       this.products.map((p) => [
         p.productId,
         escapeHtml(p.name),
+        escapeHtml(p.barcodes[0] || "—"),
         `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
         p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—",
         signalBadge(p.signal),
@@ -149,13 +173,18 @@ const Memory = {
 
     el.innerHTML = `
       <div class="detail-header">
-        <h2>${escapeHtml(p.name)}</h2>
+        <div>
+          <h2>${escapeHtml(p.name)}</h2>
+          <p class="detail-barcode">${escapeHtml(p.barcodes.join(", ") || "No barcode on file")}</p>
+        </div>
         ${signalBadge(p.signal)}
       </div>
       ${p.signalReason ? `<p class="signal-reason">${escapeHtml(p.signalReason)}</p>` : ""}
       <div class="memory-stats">
         <div><span class="stat-label">Shop floor stock</span><span class="stat-value">${p.aroniumStock}</span></div>
         <div><span class="stat-label">Reserve stock</span><span class="stat-value">${p.reserveQty}</span></div>
+        <div><span class="stat-label">Sold, last 30 days</span><span class="stat-value">${p.last30Qty}</span></div>
+        <div><span class="stat-label">Days of stock left</span><span class="stat-value">${p.daysOfStockLeft != null ? Math.round(p.daysOfStockLeft) : "—"}</span></div>
         <div><span class="stat-label">Current price</span><span class="stat-value">${money(p.currentPrice)}</span></div>
         <div><span class="stat-label">Margin</span><span class="stat-value">${p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—"}</span></div>
       </div>
@@ -168,6 +197,86 @@ const Memory = {
 
   closeDetail() {
     document.getElementById("memory-detail-modal").classList.add("hidden");
+  },
+
+  renderInsights() {
+    const el = document.getElementById("memory-insights");
+    const p = this.products;
+
+    const topByVolume = p.filter((x) => x.last30Qty > 0).sort((a, b) => b.last30Qty - a.last30Qty).slice(0, 10);
+    const topByRevenue = p.filter((x) => x.last30Revenue > 0).sort((a, b) => b.last30Revenue - a.last30Revenue).slice(0, 10);
+    const thinnestMargin = p.filter((x) => x.marginPct != null).sort((a, b) => a.marginPct - b.marginPct).slice(0, 10);
+    const costMovers = p.filter((x) => x.costRising).sort((a, b) => (a.marginPct ?? 999) - (b.marginPct ?? 999));
+    const reserveAging = p.filter((x) => x.reserveQty > 0 && x.reserveUpdatedAt)
+      .sort((a, b) => a.reserveUpdatedAt.localeCompare(b.reserveUpdatedAt)).slice(0, 10);
+
+    el.innerHTML = `
+      <div class="insights-lookup">
+        <input type="text" id="barcode-lookup" placeholder="Scan or type a barcode, then press Enter...">
+        <p id="barcode-lookup-status" class="report-status"></p>
+      </div>
+      <div class="insights-grid">
+        ${this._insightSection("Top Sellers - by Volume (last 30 days)", topByVolume, (x) => `${x.last30Qty} sold`)}
+        ${this._insightSection("Top Sellers - by Revenue (last 30 days)", topByRevenue, (x) => money(x.last30Revenue))}
+        ${this._insightSection("Thinnest Margin", thinnestMargin, (x) => (x.marginPct != null ? x.marginPct.toFixed(0) + "%" : "—"))}
+        ${this._insightSection(
+          "Cost Recently Rising", costMovers,
+          (x) => (x.marginPct != null ? x.marginPct.toFixed(0) + "% margin" : "—"),
+          "Nothing flagged for a recent cost increase.",
+        )}
+        ${this._insightSection(
+          "Reserve Stock Sitting Longest", reserveAging,
+          (x) => `${x.reserveQty} since ${(x.reserveUpdatedAt || "").slice(0, 10)}`,
+          "No reserve stock recorded yet.",
+        )}
+      </div>
+    `;
+
+    const lookupInput = document.getElementById("barcode-lookup");
+    lookupInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") this._lookupBarcode(lookupInput.value);
+    });
+    el.querySelectorAll("[data-insight-id]").forEach((row) => {
+      row.addEventListener("click", () => this.select(Number(row.dataset.insightId)));
+    });
+  },
+
+  _insightSection(title, items, valueFn, emptyText) {
+    if (!items.length) {
+      return `<section class="insight-section"><h3>${title}</h3><p class="empty-state">${emptyText || "Nothing to show yet."}</p></section>`;
+    }
+    return `
+      <section class="insight-section">
+        <h3>${title}</h3>
+        <table class="report-table insight-table">
+          <tbody>
+            ${items.map((x) => `
+              <tr data-insight-id="${x.productId}">
+                <td>${escapeHtml(x.name)}<div class="insight-barcode">${escapeHtml(x.barcodes[0] || "—")}</div></td>
+                <td class="insight-value">${valueFn(x)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </section>
+    `;
+  },
+
+  /** Jumps straight to a product's detail from anywhere - the modal is a
+   * page-level overlay, so this works regardless of which Memory sub-tab is
+   * currently showing. */
+  _lookupBarcode(term) {
+    const status = document.getElementById("barcode-lookup-status");
+    term = (term || "").trim();
+    if (!term) { status.textContent = ""; return; }
+    const match = this.products.find((x) => x.barcodes.includes(term))
+      || this.products.find((x) => x.barcodes.some((b) => b.includes(term)));
+    if (match) {
+      status.textContent = "";
+      this.select(match.productId);
+    } else {
+      status.textContent = `No product found with barcode "${term}".`;
+    }
   },
 
   renderNewProducts() {
@@ -278,23 +387,23 @@ function computeSignal({ currentPrice, priceHistory, invoiceCosts, monthly, comb
 
   if (velocityDrop) {
     return {
-      type: "reprice", marginPct, costSource,
+      type: "reprice", marginPct, costSource, costRising,
       reason: `Sales dropped to ${recentQty}/mo, well below its own recent average - the current price may be too high to move it at the old pace.`,
     };
   }
   if (costRising && marginPct != null && marginPct > 15 && combinedStock < Math.max(recentQty, 1) * 1.5) {
     return {
-      type: "stock-up", marginPct, costSource,
+      type: "stock-up", marginPct, costSource, costRising,
       reason: `Cost has been trending up and combined stock is thin relative to recent sales pace - margin is still healthy at ${marginPct.toFixed(0)}%.`,
     };
   }
   if (marginPct != null && marginPct < 8) {
     return {
-      type: "reprice", marginPct, costSource,
+      type: "reprice", marginPct, costSource, costRising,
       reason: `Margin has thinned to ${marginPct.toFixed(0)}% as cost rose - worth checking if the selling price needs adjusting.`,
     };
   }
-  return { type: "normal", marginPct, costSource, reason: "" };
+  return { type: "normal", marginPct, costSource, costRising, reason: "" };
 }
 
 function drawChart(canvas, product) {

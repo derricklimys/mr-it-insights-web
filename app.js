@@ -66,6 +66,7 @@ async function loadMemoryTab() {
   try {
     await Memory.ensureLoaded();
     if (currentMemoryTab === "products") Memory.renderList();
+    else if (currentMemoryTab === "insights") Memory.renderInsights();
     else if (currentMemoryTab === "new") Memory.renderNewProducts();
   } catch (e) {
     document.getElementById("memory-status").textContent = "";
