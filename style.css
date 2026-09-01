@@ -266,6 +266,21 @@ main { padding: 20px; }
   color: var(--ink-soft);
 }
 .modal-close:hover { background: var(--paper); }
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(27, 32, 40, 0.3);
+  white-space: nowrap;
+}
+.chart-tooltip.hidden { display: none; }
 .stock-breakdown { color: var(--ink-faint); font-size: 11.5px; }
 
 .badge.signal-stock-up { background: var(--ok-soft); color: var(--ok); }

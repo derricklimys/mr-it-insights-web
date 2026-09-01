@@ -400,6 +400,46 @@ function drawChart(canvas, product) {
   ctx.fillStyle = "#1B2028"; ctx.fillText("Cost (● invoice, ○ pricelist est.)", padL + 144, 13);
   ctx.fillStyle = "#E8DBBB"; ctx.fillRect(padL + 340, 4, 10, 10);
   ctx.fillStyle = "#1B2028"; ctx.fillText("Units sold", padL + 354, 13);
+
+  attachChartTooltip(canvas, { months, qtys, sellPrices, costByMonth, invoiceIsReal, x, padL, padR, w, barW });
+}
+
+// Hover-only detail so the chart itself stays uncluttered - move over a bar
+// or point to see that month's exact numbers instead of guessing from pixels.
+function attachChartTooltip(canvas, { months, qtys, sellPrices, costByMonth, invoiceIsReal, x, padL, padR, w, barW }) {
+  let tooltip = document.getElementById("memory-chart-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.id = "memory-chart-tooltip";
+    tooltip.className = "chart-tooltip hidden";
+    document.body.appendChild(tooltip);
+  }
+
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const mx = (e.clientX - rect.left) * scaleX;
+
+    let idx = Math.round(((mx - padL) / Math.max(w - padL - padR, 1)) * Math.max(months.length - 1, 1));
+    idx = Math.max(0, Math.min(months.length - 1, idx));
+    if (Math.abs(mx - x(idx)) > barW / 2 + 16) {
+      tooltip.classList.add("hidden");
+      return;
+    }
+
+    const costNote = costByMonth[idx] != null
+      ? `<br>Cost: ${money(costByMonth[idx])} ${invoiceIsReal[idx] ? "(invoice)" : "(pricelist est.)"}`
+      : "";
+    tooltip.innerHTML =
+      `<strong>${months[idx]}</strong><br>` +
+      `Units sold: ${qtys[idx]}<br>` +
+      `Avg selling price: ${money(sellPrices[idx] || 0)}` +
+      costNote;
+    tooltip.style.left = e.clientX + 14 + "px";
+    tooltip.style.top = e.clientY + 14 + "px";
+    tooltip.classList.remove("hidden");
+  };
+  canvas.onmouseleave = () => tooltip.classList.add("hidden");
 }
 
 function tableHtmlWithRowIds(headers, rows) {
