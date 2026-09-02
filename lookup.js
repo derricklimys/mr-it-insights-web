@@ -108,6 +108,14 @@ const Lookup = {
     );
   },
 
+  async _loadDriveJson(name) {
+    const rootId = await Drive.findChild(CONFIG.ROOT_FOLDER, "root", true);
+    if (!rootId) return null;
+    const fileId = await Drive.findChild(name, rootId);
+    if (!fileId) return null;
+    return JSON.parse(await Drive.downloadText(fileId));
+  },
+
   // --- Single search -------------------------------------------------
 
   renderSearchPanel() {
@@ -230,21 +238,30 @@ const Lookup = {
     }
   },
 
-  renderListingPanel() {
+  async renderListingPanel() {
     const el = document.getElementById("lookup-listing");
-    el.innerHTML = `<p class="loading">Loading Memory catalog…</p>`;
+    el.innerHTML = `<p class="loading">Loading Memory catalog and reserve stock…</p>`;
+
+    // Reserve stock (backroom, scanned via the phone app - not in Aronium's
+    // own Stock table) counts as real sellable inventory for the website,
+    // same "combined stock" idea already used on the Memory tab.
+    const reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
 
     const products = this.allMemoryProducts().map((p) => {
       const summary = this.salesSummary(p.pid);
-      const stock = this.stockFor(p.pid);
+      const shopStock = this.stockFor(p.pid);
+      const reserveEntry = p.barcode ? reserveStock[p.barcode] : null;
+      const reserveQty = reserveEntry ? reserveEntry.quantity : 0;
+      const stock = shopStock + reserveQty;
       const isGoodSeller = summary.daysSinceLastSale != null && summary.daysSinceLastSale <= LISTING_RECENT_SALE_WITHIN_DAYS;
       const isClearOut = stock > 0 && (summary.daysSinceLastSale == null || summary.daysSinceLastSale >= LISTING_STALE_WITHOUT_SALE_DAYS);
-      return { ...p, ...summary, stock, isGoodSeller, isClearOut };
+      return { ...p, ...summary, shopStock, reserveQty, stock, isGoodSeller, isClearOut };
     });
     this._listingProducts = products;
     this._listingSelection = this._loadSelection();
     this._listingFilter = "all";
     this._listingSearch = "";
+    this._listingSort = { key: "name", dir: 1 };
 
     el.innerHTML = `
       <p class="report-status">Pick which Memory products go on the website. Nothing here changes Aronium or the site - it just produces a <code>web_listing.txt</code> file for the sync script to read. Your checks are remembered in this browser until you download.</p>
@@ -280,6 +297,15 @@ const Lookup = {
     this._renderListingTable();
   },
 
+  _listingColumns: [
+    { key: "name", label: "Product" },
+    { key: "barcode", label: "Barcode" },
+    { key: "stock", label: "Stock" },
+    { key: "lastSale", label: "Last Sale" },
+    { key: "totalQty", label: "Total Sold" },
+    { key: "price", label: "Price" },
+  ],
+
   _renderListingTable() {
     const wrap = document.getElementById("listing-table-wrap");
     let rows = this._listingProducts;
@@ -296,14 +322,30 @@ const Lookup = {
       return;
     }
 
+    const { key: sortKey, dir } = this._listingSort;
+    rows = [...rows].sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1; // nulls (e.g. "never sold") always sort last, regardless of direction
+      if (bv == null) return -1;
+      if (typeof av === "string") return av.localeCompare(bv) * dir;
+      return (av - bv) * dir;
+    });
+
+    const headerCells = this._listingColumns.map((c) => {
+      const active = c.key === sortKey;
+      const arrow = active ? (dir === 1 ? " ▲" : " ▼") : "";
+      return `<th class="sortable" data-sort-key="${c.key}">${c.label}${arrow}</th>`;
+    }).join("");
+
     wrap.innerHTML = `<table class="report-table listing-table">
-      <thead><tr><th></th><th>Product</th><th>Barcode</th><th>Stock</th><th>Last Sale</th><th>Total Sold</th><th>Price</th><th></th></tr></thead>
+      <thead><tr><th></th>${headerCells}<th></th></tr></thead>
       <tbody>${rows.map((p) => `
         <tr>
           <td><input type="checkbox" class="listing-check" data-barcode="${p.barcode}" ${p.barcode && this._listingSelection.has(p.barcode) ? "checked" : ""} ${p.barcode ? "" : "disabled"}></td>
           <td>${escapeHtml(p.name)}</td>
           <td>${escapeHtml(p.barcode || "no barcode")}</td>
-          <td>${p.stock}</td>
+          <td>${p.stock} <span class="stock-breakdown">(${p.shopStock} shop + ${p.reserveQty} reserve)</span></td>
           <td>${p.lastSale ? `${p.lastSale} (${p.daysSinceLastSale}d ago)` : "Never"}</td>
           <td>${p.totalQty}</td>
           <td>${money(p.price)}</td>
@@ -311,6 +353,14 @@ const Lookup = {
         </tr>`).join("")}</tbody>
     </table>`;
 
+    wrap.querySelectorAll("th.sortable").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sortKey;
+        if (this._listingSort.key === key) this._listingSort.dir *= -1;
+        else this._listingSort = { key, dir: 1 };
+        this._renderListingTable();
+      });
+    });
     wrap.querySelectorAll(".listing-check").forEach((cb) => {
       cb.addEventListener("change", () => {
         const barcode = cb.dataset.barcode;

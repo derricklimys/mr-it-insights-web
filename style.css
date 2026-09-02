@@ -331,6 +331,8 @@ main { padding: 20px; }
 }
 .chip-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .listing-table td { vertical-align: middle; }
+.listing-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.listing-table th.sortable:hover { color: var(--accent); }
 .lookup-listing-actions { margin-top: 14px; }
 
 .modal-overlay {

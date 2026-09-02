@@ -70,7 +70,7 @@ async function loadLookupTab() {
       lookupLoaded = true;
       Lookup.renderSearchPanel();
       Lookup.renderBatchPanel();
-      Lookup.renderListingPanel();
+      await Lookup.renderListingPanel();
     }
   } catch (e) {
     setStatus(e.message, true);
