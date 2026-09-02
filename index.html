@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Insights — Invoices</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260902b">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -21,6 +21,7 @@
   <button class="tab-btn active" data-tab="review">Review <span id="review-count" class="badge"></span></button>
   <button class="tab-btn" data-tab="reports">Reports</button>
   <button class="tab-btn" data-tab="memory">Memory</button>
+  <button class="tab-btn" data-tab="lookup">Lookup</button>
 </nav>
 
 <main id="app" class="hidden">
@@ -67,6 +68,15 @@
       <div id="memory-new" class="memory-panel"></div>
     </div>
   </section>
+
+  <section id="tab-lookup" class="tab-panel">
+    <div class="lookup-layout">
+      <h2 class="lookup-heading">Search</h2>
+      <div id="lookup-search"></div>
+      <h2 class="lookup-heading">Batch Search</h2>
+      <div id="lookup-batch"></div>
+    </div>
+  </section>
 </main>
 
 <div id="memory-detail-modal" class="modal-overlay hidden">
@@ -76,14 +86,24 @@
   </div>
 </div>
 
+<div id="lookup-detail-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <button id="lookup-detail-close" class="modal-close" aria-label="Close" title="Close">&times;</button>
+    <div id="lookup-detail-body"></div>
+  </div>
+</div>
+
 <p id="status-line" class="status-line"></p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
-<script src="config.js"></script>
-<script src="drive.js"></script>
-<script src="review.js"></script>
-<script src="reports.js"></script>
-<script src="memory.js"></script>
-<script src="app.js"></script>
+<!-- ?v= busts browser caching of these files on every deploy - bump it whenever
+     any of them changes, otherwise a hard refresh is needed to see updates. -->
+<script src="config.js?v=20260902b"></script>
+<script src="drive.js?v=20260902b"></script>
+<script src="review.js?v=20260902b"></script>
+<script src="reports.js?v=20260902b"></script>
+<script src="memory.js?v=20260902b"></script>
+<script src="lookup.js?v=20260902b"></script>
+<script src="app.js?v=20260902b"></script>
 </body>
 </html>

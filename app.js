@@ -28,8 +28,15 @@ window.addEventListener("DOMContentLoaded", () => {
   const memoryModal = document.getElementById("memory-detail-modal");
   document.getElementById("memory-detail-close").addEventListener("click", () => Memory.closeDetail());
   memoryModal.addEventListener("click", (e) => { if (e.target === memoryModal) Memory.closeDetail(); });
+
+  const lookupModal = document.getElementById("lookup-detail-modal");
+  document.getElementById("lookup-detail-close").addEventListener("click", () => Lookup.closeDetail());
+  lookupModal.addEventListener("click", (e) => { if (e.target === lookupModal) Lookup.closeDetail(); });
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !memoryModal.classList.contains("hidden")) Memory.closeDetail();
+    if (e.key !== "Escape") return;
+    if (!memoryModal.classList.contains("hidden")) Memory.closeDetail();
+    if (!lookupModal.classList.contains("hidden")) Lookup.closeDetail();
   });
 });
 
@@ -52,6 +59,21 @@ function switchTab(name) {
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "reports") loadCurrentReport();
   if (name === "memory") loadMemoryTab();
+  if (name === "lookup") loadLookupTab();
+}
+
+let lookupLoaded = false;
+async function loadLookupTab() {
+  try {
+    await Lookup.ensureLoaded();
+    if (!lookupLoaded) {
+      lookupLoaded = true;
+      Lookup.renderSearchPanel();
+      Lookup.renderBatchPanel();
+    }
+  } catch (e) {
+    setStatus(e.message, true);
+  }
 }
 
 let currentMemoryTab = "products";

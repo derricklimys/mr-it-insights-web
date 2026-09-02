@@ -259,6 +259,54 @@ main { padding: 20px; }
 .insight-barcode { color: var(--ink-faint); font-size: 11px; margin-top: 2px; }
 .insight-value { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+.lookup-layout { max-width: 1000px; }
+.lookup-heading { font-size: 14px; margin: 24px 0 10px; color: var(--ink-soft); }
+.lookup-heading:first-child { margin-top: 0; }
+.lookup-searchbar input {
+  font: inherit;
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+.lookup-result-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.lookup-result-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.lookup-result-card:hover { background: var(--surface); }
+.lookup-match-label { color: var(--accent); font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+.lookup-result-name { font-size: 13px; }
+
+#lookup-batch-input {
+  font: inherit;
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  display: block;
+  margin: 10px 0;
+  resize: vertical;
+}
+.lookup-batch-table tbody tr { cursor: pointer; }
+.lookup-batch-table tbody tr:hover { background: var(--surface); }
+
+#lookup-detail-body h3 { font-size: 13px; margin: 18px 0 8px; color: var(--ink-soft); }
+.lookup-purchase-row { cursor: pointer; }
+.lookup-purchase-row:hover { background: var(--surface); }
+
 .modal-overlay {
   position: fixed;
   inset: 0;

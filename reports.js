@@ -28,7 +28,13 @@ const Reports = {
       if (inv.record.status !== "confirmed") continue;
       for (const li of inv.record.line_items) {
         if (li.matched_product_id) {
-          this.confirmedLines.push({ ...li, invoice_date: inv.record.invoice_date, supplier: inv.record.supplier });
+          this.confirmedLines.push({
+            ...li,
+            invoice_date: inv.record.invoice_date,
+            supplier: inv.record.supplier,
+            invoice_id: inv.id,
+            invoice_number: inv.record.invoice_number,
+          });
         }
       }
     }
