@@ -307,6 +307,32 @@ main { padding: 20px; }
 .lookup-purchase-row { cursor: pointer; }
 .lookup-purchase-row:hover { background: var(--surface); }
 
+.lookup-listing-toolbar { margin: 12px 0; }
+.lookup-listing-toolbar input {
+  font: inherit;
+  width: 100%;
+  max-width: 320px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  margin-bottom: 10px;
+  display: block;
+}
+.lookup-listing-quickfilters { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip-btn {
+  font: inherit;
+  font-size: 12.5px;
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  border-radius: 100px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.chip-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.listing-table td { vertical-align: middle; }
+.lookup-listing-actions { margin-top: 14px; }
+
 .modal-overlay {
   position: fixed;
   inset: 0;
