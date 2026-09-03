@@ -4,21 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Insights — Invoices</title>
-<link rel="stylesheet" href="style.css?v=20260902c">
+<link rel="stylesheet" href="style.css?v=20260903a">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
 
 <header class="topbar">
   <h1>Mr IT Insights <span class="sub">Invoices</span></h1>
-  <div id="auth-area">
-    <button id="signin-btn" class="btn btn-primary">Sign in with Google</button>
-    <span id="signed-in-as" class="hidden"></span>
+  <div class="topbar-right">
+    <div id="sync-area" class="sync-area hidden">
+      <button id="sync-btn" class="btn" title="Re-fetch the latest Aronium data and invoice list">Sync</button>
+      <span id="sync-status" class="sync-status"></span>
+    </div>
+    <div id="auth-area">
+      <button id="signin-btn" class="btn btn-primary">Sign in with Google</button>
+      <span id="signed-in-as" class="hidden"></span>
+    </div>
   </div>
 </header>
 
 <nav id="tabs" class="tabs hidden">
   <button class="tab-btn active" data-tab="review">Review <span id="review-count" class="badge"></span></button>
+  <button class="tab-btn" data-tab="sales">Sales</button>
   <button class="tab-btn" data-tab="reports">Reports</button>
   <button class="tab-btn" data-tab="memory">Memory</button>
   <button class="tab-btn" data-tab="lookup">Lookup</button>
@@ -29,13 +36,27 @@
     <div class="review-layout">
       <div id="sidebar-wrap" class="sidebar-wrap">
         <button id="sidebar-toggle" class="sidebar-toggle" title="Collapse invoice list">&laquo;</button>
-        <aside id="invoice-list" class="invoice-list">
-          <p class="loading">Loading invoices…</p>
-        </aside>
+        <div id="invoice-sidebar" class="invoice-sidebar">
+          <input type="text" id="invoice-search" class="invoice-search" placeholder="Search supplier, invoice #, or date…">
+          <aside id="invoice-list" class="invoice-list">
+            <p class="loading">Loading invoices…</p>
+          </aside>
+        </div>
       </div>
       <div id="invoice-detail" class="invoice-detail">
         <p class="empty-state">Select an invoice on the left to review it.</p>
       </div>
+    </div>
+  </section>
+
+  <section id="tab-sales" class="tab-panel">
+    <div class="reports-layout">
+      <nav class="report-tabs">
+        <button class="report-tab-btn sales-tab-btn active" data-salestab="latestday">Latest Day</button>
+        <button class="report-tab-btn sales-tab-btn" data-salestab="range">Range</button>
+      </nav>
+      <div id="sales-latestday" class="sales-panel active"></div>
+      <div id="sales-range" class="sales-panel"></div>
     </div>
   </section>
 
@@ -95,17 +116,25 @@
   </div>
 </div>
 
+<div id="sales-detail-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <button id="sales-detail-close" class="modal-close" aria-label="Close" title="Close">&times;</button>
+    <div id="sales-detail-body"></div>
+  </div>
+</div>
+
 <p id="status-line" class="status-line"></p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260902c"></script>
-<script src="drive.js?v=20260902c"></script>
-<script src="review.js?v=20260902c"></script>
-<script src="reports.js?v=20260902c"></script>
-<script src="memory.js?v=20260902c"></script>
-<script src="lookup.js?v=20260902c"></script>
-<script src="app.js?v=20260902c"></script>
+<script src="config.js?v=20260903a"></script>
+<script src="drive.js?v=20260903a"></script>
+<script src="review.js?v=20260903a"></script>
+<script src="reports.js?v=20260903a"></script>
+<script src="sales.js?v=20260903a"></script>
+<script src="memory.js?v=20260903a"></script>
+<script src="lookup.js?v=20260903a"></script>
+<script src="app.js?v=20260903a"></script>
 </body>
 </html>

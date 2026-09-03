@@ -6,6 +6,17 @@
 const Reports = {
   db: null,
   loaded: false,
+  lastSyncedAt: null,
+
+  /** Forces a fresh pull of the Aronium DB from Drive, bypassing the
+   * loaded-once guard - used by the header Sync button. Callers are
+   * responsible for resetting any dependent module's own cache (Memory,
+   * Sales) so they recompute against the fresh db next time they render. */
+  async forceReload() {
+    this.loaded = false;
+    this.db = null;
+    await this.ensureLoaded();
+  },
 
   async ensureLoaded() {
     if (this.loaded) return;
@@ -41,6 +52,9 @@ const Reports = {
 
     this.loaded = true;
     statusEl.textContent = "";
+    this.lastSyncedAt = new Date();
+    const syncStatusEl = document.getElementById("sync-status");
+    if (syncStatusEl) syncStatusEl.textContent = `Data as of ${formatSyncTime(this.lastSyncedAt)}`;
   },
 
   query(sql, params = []) {
@@ -156,6 +170,10 @@ const Reports = {
       : `<p class="empty-state">Nothing flagged - every confirmed purchase has at least one matching sale.</p>`;
   },
 };
+
+function formatSyncTime(d) {
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 function money(n) {
   return n == null ? "—" : "$" + n.toFixed(2);

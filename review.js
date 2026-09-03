@@ -4,6 +4,14 @@
 const Review = {
   invoices: [], // { id, folderId, jsonFileId, pdfFileId, record }
   selectedId: null,
+  searchTerm: "",
+
+  /** For doing accounts: find one invoice among a growing archive by
+   * supplier, invoice number, or date substring, without scrolling. */
+  setSearch(term) {
+    this.searchTerm = term;
+    this.renderList();
+  },
 
   async load() {
     const listEl = document.getElementById("invoice-list");
@@ -71,7 +79,22 @@ const Review = {
       return;
     }
 
-    listEl.innerHTML = this.invoices
+    const term = this.searchTerm.trim().toLowerCase();
+    const visible = term
+      ? this.invoices.filter((inv) => {
+          const r = inv.record;
+          return (r.supplier || "").toLowerCase().includes(term)
+            || (r.invoice_number || "").toLowerCase().includes(term)
+            || (r.invoice_date || "").includes(term);
+        })
+      : this.invoices;
+
+    if (!visible.length) {
+      listEl.innerHTML = `<p class="empty-state">No invoices match "${escapeHtml(this.searchTerm)}".</p>`;
+      return;
+    }
+
+    listEl.innerHTML = visible
       .map((inv) => {
         const r = inv.record;
         const cls = inv.id === this.selectedId ? "invoice-row selected" : "invoice-row";
