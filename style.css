@@ -277,6 +277,16 @@ main { padding: 20px; }
 .sales-table-wrap { overflow-x: auto; }
 .sales-refund-row { color: var(--error); }
 
+.order-table input[type="number"] {
+  font: inherit;
+  width: 70px;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+}
+.order-dropped-note { color: var(--warn); }
+
 .empty-state, .loading { color: var(--ink-faint); padding: 20px; text-align: center; }
 
 .status-line {

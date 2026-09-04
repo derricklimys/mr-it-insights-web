@@ -114,6 +114,36 @@ const Drive = {
       { method: "PATCH", headers: { "Content-Type": mimeType }, body: contentString },
     );
   },
+
+  /** Creates a brand-new file - every save path up to now has only ever
+   * updated a file the Python migration scripts already created (invoice.json
+   * edits), so this never existed before. Needed for state the web app
+   * itself originates, like the Order Memory page's tracked-list/draft files. */
+  async createFile(name, parentId, contentString, mimeType) {
+    const boundary = "-------mrit314159265358979323846";
+    const body =
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ name, parents: [parentId] })}\r\n` +
+      `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n${contentString}\r\n` +
+      `--${boundary}--`;
+    const resp = await this._fetch(
+      `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`,
+      { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body },
+    );
+    return (await resp.json()).id;
+  },
+
+  /** Create-or-update a JSON file by name under a folder - the web app's
+   * own state (not something a Python script created first) always goes
+   * through this rather than callers having to branch on "does it exist yet". */
+  async saveJson(name, parentId, obj) {
+    const content = JSON.stringify(obj, null, 2);
+    const existing = await this.findChild(name, parentId);
+    if (existing) {
+      await this.updateContent(existing, content, "application/json");
+      return existing;
+    }
+    return this.createFile(name, parentId, content, "application/json");
+  },
 };
 
 function setStatus(msg, isError = false) {

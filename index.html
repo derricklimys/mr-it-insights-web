@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Insights — Invoices</title>
-<link rel="stylesheet" href="style.css?v=20260903a">
+<link rel="stylesheet" href="style.css?v=20260903c">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -29,6 +29,7 @@
   <button class="tab-btn" data-tab="reports">Reports</button>
   <button class="tab-btn" data-tab="memory">Memory</button>
   <button class="tab-btn" data-tab="lookup">Lookup</button>
+  <button class="tab-btn" data-tab="order">Order Memory</button>
 </nav>
 
 <main id="app" class="hidden">
@@ -100,6 +101,16 @@
       <div id="lookup-listing"></div>
     </div>
   </section>
+
+  <section id="tab-order" class="tab-panel">
+    <div class="reports-layout">
+      <p class="report-status">Combined shop + reserve stock, the current Convergent pricelist, and your recent sales - cross-referenced so you don't have to check each by hand. Type quantities, Save Order to keep your progress, Export to Excel when ready to send.</p>
+      <div id="order-status" class="report-status"></div>
+      <div id="order-list"></div>
+      <h2 class="lookup-heading">Add from current pricelist</h2>
+      <div id="order-add-candidates"></div>
+    </div>
+  </section>
 </main>
 
 <div id="memory-detail-modal" class="modal-overlay hidden">
@@ -126,15 +137,17 @@
 <p id="status-line" class="status-line"></p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260903a"></script>
-<script src="drive.js?v=20260903a"></script>
-<script src="review.js?v=20260903a"></script>
-<script src="reports.js?v=20260903a"></script>
-<script src="sales.js?v=20260903a"></script>
-<script src="memory.js?v=20260903a"></script>
-<script src="lookup.js?v=20260903a"></script>
-<script src="app.js?v=20260903a"></script>
+<script src="config.js?v=20260903c"></script>
+<script src="drive.js?v=20260903c"></script>
+<script src="review.js?v=20260903c"></script>
+<script src="reports.js?v=20260903c"></script>
+<script src="sales.js?v=20260903c"></script>
+<script src="memory.js?v=20260903c"></script>
+<script src="lookup.js?v=20260903c"></script>
+<script src="order.js?v=20260903c"></script>
+<script src="app.js?v=20260903c"></script>
 </body>
 </html>

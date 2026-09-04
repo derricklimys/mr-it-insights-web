@@ -12,6 +12,7 @@ const LISTING_SELECTION_KEY = "mrit_web_listing_selection";
 
 const Lookup = {
   latestDataDate: null,
+  reserveStock: null,
 
   async ensureLoaded() {
     await Reports.ensureLoaded();
@@ -19,6 +20,21 @@ const Lookup = {
       const row = Reports.query("SELECT MAX(Date) as d FROM Document")[0];
       this.latestDataDate = row ? row.d : null;
     }
+    if (!this.reserveStock) {
+      this.reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
+    }
+  },
+
+  /** Reserve (backroom) stock is only ever scanned for Memory-group products
+   * - the Stock tab that populates reserve_stock.json only scans that group.
+   * Returns null for anything else so callers can skip the breakdown
+   * entirely rather than showing a misleading "0 reserve". barcodes may be
+   * a single barcode or a comma-joined GROUP_CONCAT string. */
+  reserveFor(groupName, barcodes) {
+    if (groupName !== "MEMORY") return null;
+    const list = (barcodes || "").split(",").map((b) => b.trim()).filter(Boolean);
+    const entry = list.map((bc) => this.reserveStock[bc]).find(Boolean);
+    return entry ? entry.quantity : 0;
   },
 
   findByBarcode(barcode) {
@@ -187,7 +203,10 @@ const Lookup = {
       const product = this.findByBarcode(bc);
       if (!product) return { barcode: bc, notFound: true };
       const summary = this.salesSummary(product.pid);
-      return { barcode: bc, pid: product.pid, name: product.name, groupName: product.groupName, stock: this.stockFor(product.pid), ...summary };
+      const shopStock = this.stockFor(product.pid);
+      const reserveQty = this.reserveFor(product.groupName, bc);
+      const stock = reserveQty != null ? shopStock + reserveQty : shopStock;
+      return { barcode: bc, pid: product.pid, name: product.name, groupName: product.groupName, shopStock, reserveQty, stock, ...summary };
     });
 
     const found = rows.filter((r) => !r.notFound);
@@ -203,7 +222,7 @@ const Lookup = {
           <tr data-id="${r.pid}" class="lookup-batch-row">
             <td>${escapeHtml(r.barcode)}</td>
             <td>${escapeHtml(r.name)}</td>
-            <td>${r.stock}</td>
+            <td>${r.stock}${r.reserveQty != null ? ` <span class="stock-breakdown">(${r.shopStock} shop + ${r.reserveQty} reserve)</span>` : ""}</td>
             <td>${r.lastSale || "Never sold"}</td>
             <td>${r.daysSinceLastSale != null ? r.daysSinceLastSale : "—"}</td>
             <td>${r.totalQty}</td>
@@ -242,15 +261,13 @@ const Lookup = {
     const el = document.getElementById("lookup-listing");
     el.innerHTML = `<p class="loading">Loading Memory catalog and reserve stock…</p>`;
 
-    // Reserve stock (backroom, scanned via the phone app - not in Aronium's
-    // own Stock table) counts as real sellable inventory for the website,
-    // same "combined stock" idea already used on the Memory tab.
-    const reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
-
+    // reserve_stock.json is already cached on this.reserveStock by
+    // ensureLoaded() - reused here rather than fetched again, same "combined
+    // stock" idea already used on the Memory tab.
     const products = this.allMemoryProducts().map((p) => {
       const summary = this.salesSummary(p.pid);
       const shopStock = this.stockFor(p.pid);
-      const reserveEntry = p.barcode ? reserveStock[p.barcode] : null;
+      const reserveEntry = p.barcode ? this.reserveStock[p.barcode] : null;
       const reserveQty = reserveEntry ? reserveEntry.quantity : 0;
       const stock = shopStock + reserveQty;
       const isGoodSeller = summary.daysSinceLastSale != null && summary.daysSinceLastSale <= LISTING_RECENT_SALE_WITHIN_DAYS;
@@ -404,7 +421,9 @@ const Lookup = {
     const body = document.getElementById("lookup-detail-body");
     if (!p) { body.innerHTML = `<p class="empty-state">Product not found.</p>`; modal.classList.remove("hidden"); return; }
 
-    const stock = this.stockFor(productId);
+    const shopStock = this.stockFor(productId);
+    const reserveQty = this.reserveFor(p.groupName, p.barcodes);
+    const stock = reserveQty != null ? shopStock + reserveQty : shopStock;
     const summary = this.salesSummary(productId);
     const history = this.salesHistory(productId);
     const purchases = this.purchaseHistory(productId);
@@ -414,7 +433,7 @@ const Lookup = {
       <p class="detail-barcode">${escapeHtml(p.barcodes || "No barcode on file")}</p>
       ${p.groupName ? `<p class="detail-barcode">${escapeHtml(p.groupName)}</p>` : ""}
       <div class="memory-stats">
-        <div><span class="stat-label">Stock (Aronium)</span><span class="stat-value">${stock}</span></div>
+        <div><span class="stat-label">${reserveQty != null ? "Stock" : "Stock (Aronium)"}</span><span class="stat-value">${stock}</span>${reserveQty != null ? `<span class="stock-breakdown">(${shopStock} shop + ${reserveQty} reserve)</span>` : ""}</div>
         <div><span class="stat-label">Price</span><span class="stat-value">${money(p.price)}</span></div>
         <div><span class="stat-label">Last Sale</span><span class="stat-value">${summary.lastSale || "Never"}</span></div>
         <div><span class="stat-label">Total Sold</span><span class="stat-value">${summary.totalQty}</span></div>

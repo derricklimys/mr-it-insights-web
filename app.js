@@ -86,6 +86,8 @@ async function doSync() {
     Memory.loaded = false;
     Sales.loaded = false;
     Lookup.latestDataDate = null;
+    Lookup.reserveStock = null;
+    Order.loaded = false;
     await rerenderActiveTab();
   } catch (e) {
     statusEl.textContent = "";
@@ -104,6 +106,7 @@ function switchTab(name) {
   if (name === "reports") loadCurrentReport();
   if (name === "memory") loadMemoryTab();
   if (name === "lookup") loadLookupTab();
+  if (name === "order") Order.render();
 }
 
 /** Re-renders whichever tab/sub-tab is currently visible - used after a
@@ -115,6 +118,7 @@ async function rerenderActiveTab() {
   else if (currentTab === "reports") await loadCurrentReport();
   else if (currentTab === "memory") await loadMemoryTab();
   else if (currentTab === "lookup") { lookupLoaded = false; await loadLookupTab(); }
+  else if (currentTab === "order") await Order.render();
 }
 
 let currentSalesTab = "latestday";
