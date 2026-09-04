@@ -303,6 +303,9 @@ main { padding: 20px; }
   background: var(--surface-raised);
 }
 .order-dropped-note { color: var(--warn); }
+.order-total-line { font-size: 15px; margin: 0 0 10px; }
+.order-total-line strong { font-variant-numeric: tabular-nums; }
+.order-line-cost { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .empty-state, .loading { color: var(--ink-faint); padding: 20px; text-align: center; }
 

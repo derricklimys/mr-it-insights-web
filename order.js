@@ -172,6 +172,18 @@ const Order = {
     this.rows = rows;
   },
 
+  /** Line cost is null (shown "—", contributes 0) when the dealer price is
+   * unknown - e.g. a tracked item that's dropped out of the current
+   * pricelist (still orderable in principle, just not at a known current
+   * price) shouldn't silently masquerade as a $0 line in the budget total. */
+  _lineCost(r) {
+    return r.dealerPrice != null ? r.dealerPrice * (r.qty || 0) : null;
+  },
+
+  _orderTotal() {
+    return this.rows.reduce((sum, r) => sum + (this._lineCost(r) || 0), 0);
+  },
+
   renderList() {
     const el = document.getElementById("order-list");
     if (!this.rows.length) {
@@ -186,12 +198,13 @@ const Order = {
           <button id="order-export-btn" class="btn">Export to Excel</button>
         </div>
       </div>
+      <p class="order-total-line">Order total: <strong id="order-total-value">${money(this._orderTotal())}</strong></p>
       <p id="order-save-status" class="report-status"></p>
       <div class="sales-table-wrap">
         <table class="report-table order-table">
           <thead><tr>
             <th>Product</th><th>Barcode</th><th>Dealer S$</th><th>SRP</th>
-            <th>Stock</th><th>30d</th><th>60d</th><th>90d</th><th>Order Qty</th><th></th>
+            <th>Stock</th><th>30d</th><th>60d</th><th>90d</th><th>Order Qty</th><th>Line Cost</th><th></th>
           </tr></thead>
           <tbody>
             ${this.rows.map((r) => `
@@ -209,6 +222,7 @@ const Order = {
                 <td>${r.d60}</td>
                 <td>${r.d90}</td>
                 <td><input type="number" min="0" step="1" class="order-qty-input" data-barcode="${r.barcode}" value="${r.qty || ""}" placeholder="0"></td>
+                <td class="order-line-cost" data-barcode="${r.barcode}">${this._lineCost(r) != null ? money(this._lineCost(r)) : "—"}</td>
                 <td><button class="btn order-remove-btn" data-barcode="${r.barcode}" title="Remove from tracked list">Remove</button></td>
               </tr>`).join("")}
           </tbody>
@@ -220,8 +234,21 @@ const Order = {
       input.addEventListener("input", (e) => {
         const bc = e.target.dataset.barcode;
         const n = parseInt(e.target.value, 10);
-        if (Number.isFinite(n) && n > 0) this.draftQty[bc] = n;
-        else delete this.draftQty[bc];
+        const r = this.rows.find((row) => row.barcode === bc);
+        if (Number.isFinite(n) && n > 0) {
+          this.draftQty[bc] = n;
+          if (r) r.qty = n;
+        } else {
+          delete this.draftQty[bc];
+          if (r) r.qty = 0;
+        }
+        // Live budget feedback without a full re-render - a full renderList()
+        // here would rebuild every input and drop focus/cursor position
+        // mid-keystroke.
+        const costCell = el.querySelector(`.order-line-cost[data-barcode="${CSS.escape(bc)}"]`);
+        if (costCell && r) costCell.textContent = this._lineCost(r) != null ? money(this._lineCost(r)) : "—";
+        const totalEl = document.getElementById("order-total-value");
+        if (totalEl) totalEl.textContent = money(this._orderTotal());
       });
     });
     el.querySelectorAll(".order-remove-btn").forEach((btn) => {
