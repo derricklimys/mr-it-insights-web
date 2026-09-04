@@ -17,6 +17,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("invoice-search").addEventListener("input", (e) => Review.setSearch(e.target.value));
 
+  document.getElementById("order-add-barcode-btn").addEventListener("click", () => Order.addByBarcodeFromInput());
+  document.getElementById("order-add-barcode-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") Order.addByBarcodeFromInput();
+  });
+
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });

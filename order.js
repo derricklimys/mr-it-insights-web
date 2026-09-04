@@ -68,20 +68,49 @@ const Order = {
    * silently re-derived from Aronium/the pricelist after the first load, so
    * a barcode Convergent drops from the pricelist (or Derrick sells through
    * and disables in Aronium) keeps showing until he removes it himself.
-   * Seeded exactly once, the first time this file doesn't exist yet. */
+   * Seeded exactly once, the first time this file doesn't exist yet - with
+   * just what Memory's own signal logic already flags "Stock up" (rising
+   * cost + thin stock + healthy margin), not the full ~100+-item Memory
+   * catalog. Starting broad would mean removing far more rows than he'd
+   * ever add just to get down to what's actually worth ordering - starting
+   * from the short, actionable list and adding anything else by barcode
+   * (or from the pricelist candidates below) is the easier direction, per
+   * Derrick's own framing of the problem. */
   async _loadTrackedList() {
     const saved = await this._loadDriveJson(ORDER_TRACKED_FILE);
     if (saved && Array.isArray(saved.barcodes)) {
       return new Set(saved.barcodes);
     }
-    const aroniumMemory = Reports.query(
-      `SELECT (SELECT b.Value FROM Barcode b WHERE b.ProductId = p.Id LIMIT 1) as barcode
-       FROM Product p JOIN ProductGroup pg ON pg.Id = p.ProductGroupId
-       WHERE pg.Name = 'MEMORY' AND p.IsEnabled = 1`,
-    ).map((r) => r.barcode).filter(Boolean);
-    const seeded = new Set([...aroniumMemory, ...this.priceByUpc.keys()]);
+    await Memory.ensureLoaded();
+    const seeded = new Set(
+      Memory.products.filter((p) => p.signal === "stock-up").flatMap((p) => p.barcodes),
+    );
     await this._saveTrackedList(seeded);
     return seeded;
+  },
+
+  /** Direct "I know the barcode I want" add - faster than scanning the
+   * pricelist-candidates table for one specific item, and the only way to
+   * re-add something by barcode that isn't in the current pricelist at all
+   * (e.g. re-tracking a discontinued item after removing it once). */
+  async addByBarcodeFromInput() {
+    const input = document.getElementById("order-add-barcode-input");
+    const statusEl = document.getElementById("order-add-barcode-status");
+    const barcode = input.value.trim();
+    if (!barcode) return;
+    if (this.trackedBarcodes.has(barcode)) {
+      statusEl.textContent = "Already on the list.";
+      return;
+    }
+    const inPricelist = this.priceByUpc.has(barcode);
+    const inAronium = !!Lookup.findByBarcode(barcode);
+    if (!inPricelist && !inAronium) {
+      statusEl.textContent = `No product found for barcode "${barcode}" in Aronium or the current pricelist.`;
+      return;
+    }
+    statusEl.textContent = "";
+    input.value = "";
+    await this.addBarcode(barcode);
   },
 
   async _saveTrackedList(set) {

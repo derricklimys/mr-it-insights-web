@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Insights — Invoices</title>
-<link rel="stylesheet" href="style.css?v=20260903c">
+<link rel="stylesheet" href="style.css?v=20260903d">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -104,8 +104,13 @@
 
   <section id="tab-order" class="tab-panel">
     <div class="reports-layout">
-      <p class="report-status">Combined shop + reserve stock, the current Convergent pricelist, and your recent sales - cross-referenced so you don't have to check each by hand. Type quantities, Save Order to keep your progress, Export to Excel when ready to send.</p>
+      <p class="report-status">Combined shop + reserve stock, the current Convergent pricelist, and your recent sales - cross-referenced so you don't have to check each by hand. Starts with what's flagged "Stock up" on the Memory tab - add anything else below. Type quantities, Save Order to keep your progress, Export to Excel when ready to send.</p>
       <div id="order-status" class="report-status"></div>
+      <div class="order-add-barcode">
+        <input type="text" id="order-add-barcode-input" placeholder="Add by barcode…">
+        <button id="order-add-barcode-btn" class="btn">Add</button>
+        <span id="order-add-barcode-status" class="report-status"></span>
+      </div>
       <div id="order-list"></div>
       <h2 class="lookup-heading">Add from current pricelist</h2>
       <div id="order-add-candidates"></div>
@@ -140,14 +145,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260903c"></script>
-<script src="drive.js?v=20260903c"></script>
-<script src="review.js?v=20260903c"></script>
-<script src="reports.js?v=20260903c"></script>
-<script src="sales.js?v=20260903c"></script>
-<script src="memory.js?v=20260903c"></script>
-<script src="lookup.js?v=20260903c"></script>
-<script src="order.js?v=20260903c"></script>
-<script src="app.js?v=20260903c"></script>
+<script src="config.js?v=20260903d"></script>
+<script src="drive.js?v=20260903d"></script>
+<script src="review.js?v=20260903d"></script>
+<script src="reports.js?v=20260903d"></script>
+<script src="sales.js?v=20260903d"></script>
+<script src="memory.js?v=20260903d"></script>
+<script src="lookup.js?v=20260903d"></script>
+<script src="order.js?v=20260903d"></script>
+<script src="app.js?v=20260903d"></script>
 </body>
 </html>

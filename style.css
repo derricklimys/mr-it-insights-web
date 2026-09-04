@@ -277,6 +277,23 @@ main { padding: 20px; }
 .sales-table-wrap { overflow-x: auto; }
 .sales-refund-row { color: var(--error); }
 
+.order-add-barcode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+.order-add-barcode input[type="text"] {
+  font: inherit;
+  width: 100%;
+  max-width: 280px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+.order-add-barcode .report-status { margin: 0; }
+
 .order-table input[type="number"] {
   font: inherit;
   width: 70px;
