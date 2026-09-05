@@ -171,6 +171,13 @@ const Memory = {
     const el = document.getElementById("memory-detail");
     if (!p) { el.innerHTML = ""; return; }
 
+    // Deliberately the raw latest figures, not the blended cost estimate
+    // used for the Margin stat/signal logic - Derrick asked to see exactly
+    // what he actually paid on his last invoice and what Convergent's own
+    // current pricelist quotes, side by side, not a single derived number.
+    const lastInvoice = p.invoiceCosts.length ? p.invoiceCosts[p.invoiceCosts.length - 1] : null;
+    const lastPricelist = p.priceHistory.length ? p.priceHistory[p.priceHistory.length - 1] : null;
+
     el.innerHTML = `
       <div class="detail-header">
         <div>
@@ -187,6 +194,20 @@ const Memory = {
         <div><span class="stat-label">Days of stock left</span><span class="stat-value">${p.daysOfStockLeft != null ? Math.round(p.daysOfStockLeft) : "—"}</span></div>
         <div><span class="stat-label">Current price</span><span class="stat-value">${money(p.currentPrice)}</span></div>
         <div><span class="stat-label">Margin</span><span class="stat-value">${p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—"}</span></div>
+        <div>
+          <span class="stat-label">Cost (latest invoice)</span>
+          <span class="stat-value">${lastInvoice ? money(lastInvoice.cost) : "—"}</span>
+          ${lastInvoice ? `<span class="stock-breakdown">${escapeHtml(lastInvoice.date)} &middot; ${escapeHtml(lastInvoice.supplier)}</span>` : ""}
+        </div>
+        <div>
+          <span class="stat-label">Last Selling Price (Dealer)</span>
+          <span class="stat-value">${lastPricelist && lastPricelist.dealer_price != null ? money(lastPricelist.dealer_price) : "—"}</span>
+          ${lastPricelist ? `<span class="stock-breakdown">pricelist ${escapeHtml(lastPricelist.date)}</span>` : ""}
+        </div>
+        <div>
+          <span class="stat-label">RCP (SRP)</span>
+          <span class="stat-value">${lastPricelist && lastPricelist.srp != null ? money(lastPricelist.srp) : "—"}</span>
+        </div>
       </div>
       <p class="cost-source-note">${costSourceNote(p)}</p>
       <canvas id="memory-chart" width="900" height="320"></canvas>
