@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Insights — Invoices</title>
-<link rel="stylesheet" href="style.css?v=20260904a">
+<link rel="stylesheet" href="style.css?v=20260906a">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -28,6 +28,7 @@
   <button class="tab-btn" data-tab="sales">Sales</button>
   <button class="tab-btn" data-tab="reports">Reports</button>
   <button class="tab-btn" data-tab="memory">Memory</button>
+  <button class="tab-btn" data-tab="powerbank">Powerbank</button>
   <button class="tab-btn" data-tab="lookup">Lookup</button>
   <button class="tab-btn" data-tab="order">Order Memory</button>
 </nav>
@@ -91,6 +92,13 @@
     </div>
   </section>
 
+  <section id="tab-powerbank" class="tab-panel">
+    <div class="memory-layout">
+      <div id="powerbank-status" class="report-status"></div>
+      <div id="powerbank-list"></div>
+    </div>
+  </section>
+
   <section id="tab-lookup" class="tab-panel">
     <div class="lookup-layout">
       <h2 class="lookup-heading">Search</h2>
@@ -125,6 +133,13 @@
   </div>
 </div>
 
+<div id="powerbank-detail-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <button id="powerbank-detail-close" class="modal-close" aria-label="Close" title="Close">&times;</button>
+    <div id="powerbank-detail"></div>
+  </div>
+</div>
+
 <div id="lookup-detail-modal" class="modal-overlay hidden">
   <div class="modal-box">
     <button id="lookup-detail-close" class="modal-close" aria-label="Close" title="Close">&times;</button>
@@ -145,14 +160,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260904a"></script>
-<script src="drive.js?v=20260904a"></script>
-<script src="review.js?v=20260904a"></script>
-<script src="reports.js?v=20260904a"></script>
-<script src="sales.js?v=20260904a"></script>
-<script src="memory.js?v=20260904a"></script>
-<script src="lookup.js?v=20260904a"></script>
-<script src="order.js?v=20260904a"></script>
-<script src="app.js?v=20260904a"></script>
+<script src="config.js?v=20260906a"></script>
+<script src="drive.js?v=20260906a"></script>
+<script src="review.js?v=20260906a"></script>
+<script src="reports.js?v=20260906a"></script>
+<script src="sales.js?v=20260906a"></script>
+<script src="catalog.js?v=20260906a"></script>
+<script src="memory.js?v=20260906a"></script>
+<script src="powerbank.js?v=20260906a"></script>
+<script src="lookup.js?v=20260906a"></script>
+<script src="order.js?v=20260906a"></script>
+<script src="app.js?v=20260906a"></script>
 </body>
 </html>

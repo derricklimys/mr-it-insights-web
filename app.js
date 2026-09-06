@@ -45,6 +45,10 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("memory-detail-close").addEventListener("click", () => Memory.closeDetail());
   memoryModal.addEventListener("click", (e) => { if (e.target === memoryModal) Memory.closeDetail(); });
 
+  const powerbankModal = document.getElementById("powerbank-detail-modal");
+  document.getElementById("powerbank-detail-close").addEventListener("click", () => Powerbank.closeDetail());
+  powerbankModal.addEventListener("click", (e) => { if (e.target === powerbankModal) Powerbank.closeDetail(); });
+
   const lookupModal = document.getElementById("lookup-detail-modal");
   document.getElementById("lookup-detail-close").addEventListener("click", () => Lookup.closeDetail());
   lookupModal.addEventListener("click", (e) => { if (e.target === lookupModal) Lookup.closeDetail(); });
@@ -52,6 +56,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!memoryModal.classList.contains("hidden")) Memory.closeDetail();
+    if (!powerbankModal.classList.contains("hidden")) Powerbank.closeDetail();
     if (!lookupModal.classList.contains("hidden")) Lookup.closeDetail();
     if (!salesModal.classList.contains("hidden")) Sales.closeDetail();
   });
@@ -89,6 +94,7 @@ async function doSync() {
     await Review.load();
     await Reports.forceReload();
     Memory.loaded = false;
+    Powerbank.loaded = false;
     Sales.loaded = false;
     Lookup.latestDataDate = null;
     Lookup.reserveStock = null;
@@ -110,6 +116,7 @@ function switchTab(name) {
   if (name === "sales") loadSalesTab();
   if (name === "reports") loadCurrentReport();
   if (name === "memory") loadMemoryTab();
+  if (name === "powerbank") loadPowerbankTab();
   if (name === "lookup") loadLookupTab();
   if (name === "order") Order.render();
 }
@@ -122,6 +129,7 @@ async function rerenderActiveTab() {
   if (currentTab === "sales") await loadSalesTab();
   else if (currentTab === "reports") await loadCurrentReport();
   else if (currentTab === "memory") await loadMemoryTab();
+  else if (currentTab === "powerbank") await loadPowerbankTab();
   else if (currentTab === "lookup") { lookupLoaded = false; await loadLookupTab(); }
   else if (currentTab === "order") await Order.render();
 }
@@ -174,6 +182,16 @@ async function loadMemoryTab() {
     else if (currentMemoryTab === "new") Memory.renderNewProducts();
   } catch (e) {
     document.getElementById("memory-status").textContent = "";
+    setStatus(e.message, true);
+  }
+}
+
+async function loadPowerbankTab() {
+  try {
+    await Powerbank.ensureLoaded();
+    Powerbank.renderList();
+  } catch (e) {
+    document.getElementById("powerbank-status").textContent = "";
     setStatus(e.message, true);
   }
 }

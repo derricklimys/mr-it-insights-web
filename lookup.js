@@ -25,13 +25,13 @@ const Lookup = {
     }
   },
 
-  /** Reserve (backroom) stock is only ever scanned for Memory-group products
-   * - the Stock tab that populates reserve_stock.json only scans that group.
-   * Returns null for anything else so callers can skip the breakdown
-   * entirely rather than showing a misleading "0 reserve". barcodes may be
-   * a single barcode or a comma-joined GROUP_CONCAT string. */
+  /** Reserve (backroom) stock is only ever scanned for the groups Derrick
+   * actually uses the Stock tab for - Memory and, as of Powerbank tracking,
+   * Powerbank too. Returns null for anything else so callers can skip the
+   * breakdown entirely rather than showing a misleading "0 reserve".
+   * barcodes may be a single barcode or a comma-joined GROUP_CONCAT string. */
   reserveFor(groupName, barcodes) {
-    if (groupName !== "MEMORY") return null;
+    if (!["MEMORY", "POWERBANK"].includes(groupName)) return null;
     const list = (barcodes || "").split(",").map((b) => b.trim()).filter(Boolean);
     const entry = list.map((bc) => this.reserveStock[bc]).find(Boolean);
     return entry ? entry.quantity : 0;
