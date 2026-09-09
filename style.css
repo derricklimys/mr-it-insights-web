@@ -228,6 +228,12 @@ main { padding: 20px; }
 
 .trend-row { padding: 8px 0; border-bottom: 1px solid var(--line); }
 .trend-points { color: var(--ink-soft); font-size: 12.5px; margin-top: 2px; }
+.trend-barcode { color: var(--ink-faint); font-size: 12px; margin-left: 8px; }
+.cost-up { color: var(--error); }
+.cost-down { color: var(--info); }
+
+.report-table tbody tr.report-row-linked { cursor: pointer; }
+.report-table tbody tr.report-row-linked:hover { background: var(--surface); }
 
 .sales-panel { display: none; }
 .sales-panel.active { display: block; }

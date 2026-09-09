@@ -146,11 +146,12 @@ const Powerbank = {
       return;
     }
     el.innerHTML = Catalog.tableHtmlWithRowIds(
-      ["", "Product", "Barcode", "Combined Stock", "Margin", "Signal"],
+      ["", "Product", "Barcode", "Model", "Combined Stock", "Margin", "Signal"],
       this.products.map((p) => [
         p.productId,
         escapeHtml(p.name),
         escapeHtml(p.barcodes[0] || "—"),
+        escapeHtml(p.priceHistoryPn || "—"),
         `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
         p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—",
         Catalog.signalBadge(p.signal),
@@ -180,6 +181,11 @@ const Powerbank = {
       </div>
       ${p.signalReason ? `<p class="signal-reason">${escapeHtml(p.signalReason)}</p>` : ""}
       <div class="memory-stats">
+        <div>
+          <span class="stat-label">Verbatim Model</span>
+          <span class="stat-value">${p.priceHistoryPn ? escapeHtml(p.priceHistoryPn) : "—"}</span>
+          ${lastPricelist && lastPricelist.description ? `<span class="stock-breakdown">${escapeHtml(lastPricelist.description).replace(/\n/g, "<br>")}</span>` : ""}
+        </div>
         <div><span class="stat-label">Shop floor stock</span><span class="stat-value">${p.aroniumStock}</span></div>
         <div><span class="stat-label">Reserve stock</span><span class="stat-value">${p.reserveQty}</span></div>
         <div><span class="stat-label">Sold, last 30 days</span><span class="stat-value">${p.last30Qty}</span></div>

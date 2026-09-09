@@ -74,6 +74,11 @@ const Reports = {
     return rows[0] || null;
   },
 
+  barcodeFor(productId) {
+    const rows = this.query("SELECT Value FROM Barcode WHERE ProductId = ? LIMIT 1", [productId]);
+    return rows[0] ? rows[0].Value : null;
+  },
+
   salesFor(productId) {
     const rows = this.query(
       `SELECT SUM(di.Quantity) as qty, MAX(date(d.Date)) as last_sale
@@ -99,7 +104,11 @@ const Reports = {
         if (!p || !p.Price) return null;
         const marginDollar = p.Price - li.true_cost_incl_gst;
         const marginPct = (marginDollar / p.Price) * 100;
-        return { name: p.Name, group: p.GroupName, cost: li.true_cost_incl_gst, price: p.Price, marginDollar, marginPct, date: li.invoice_date };
+        return {
+          name: p.Name, group: p.GroupName, cost: li.true_cost_incl_gst, price: p.Price, marginDollar, marginPct, date: li.invoice_date,
+          barcode: this.barcodeFor(li.matched_product_id),
+          invoiceId: li.invoice_id, invoiceNumber: li.invoice_number, supplier: li.supplier,
+        };
       })
       .filter(Boolean)
       .sort((a, b) => a.marginPct - b.marginPct);
@@ -109,10 +118,31 @@ const Reports = {
       el.innerHTML = `<p class="empty-state">No confirmed invoices with matched products yet.</p>`;
       return;
     }
-    el.innerHTML = tableHtml(
-      ["Product", "Group", "Last Cost", "Current Price", "Margin $", "Margin %", "As of"],
-      rows.map((r) => [r.name, r.group || "", money(r.cost), money(r.price), money(r.marginDollar), r.marginPct.toFixed(1) + "%", r.date]),
-    );
+    // Custom markup instead of the plain tableHtml() helper - each row needs
+    // to be clickable (jump to the source invoice on Review/Invoices) so
+    // Derrick can verify a suspicious margin against the actual scanned
+    // invoice, not just trust the extracted number.
+    el.innerHTML = `<table class="report-table">
+      <thead><tr>${["Product", "Group", "Barcode", "Last Cost", "Current Price", "Margin $", "Margin %", "Invoice", "As of"].map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((r) => `
+        <tr class="report-row-linked" data-invoice-id="${r.invoiceId}" title="Click to view the source invoice">
+          <td>${escapeHtml(r.name)}</td>
+          <td>${escapeHtml(r.group || "")}</td>
+          <td>${escapeHtml(r.barcode || "—")}</td>
+          <td>${money(r.cost)}</td>
+          <td>${money(r.price)}</td>
+          <td>${money(r.marginDollar)}</td>
+          <td>${r.marginPct.toFixed(1)}%</td>
+          <td>${escapeHtml(r.supplier || "")} ${escapeHtml(r.invoiceNumber || "")}</td>
+          <td>${r.date}</td>
+        </tr>`).join("")}</tbody>
+    </table>`;
+    el.querySelectorAll(".report-row-linked").forEach((row) => {
+      row.addEventListener("click", () => {
+        switchTab("review");
+        Review.select(row.dataset.invoiceId);
+      });
+    });
   },
 
   async renderTrend() {
@@ -128,9 +158,25 @@ const Reports = {
       .filter(([, lines]) => lines.length > 1)
       .map(([productId, lines]) => {
         const p = this.productInfo(productId);
+        const barcode = this.barcodeFor(productId);
         lines.sort((a, b) => a.invoice_date.localeCompare(b.invoice_date));
-        const points = lines.map((l) => `${l.invoice_date}: ${money(l.true_cost_incl_gst)} (${l.supplier})`).join(" &rarr; ");
-        return `<div class="trend-row"><strong>${escapeHtml(p ? p.Name : productId)}</strong><div class="trend-points">${points}</div></div>`;
+        // Bold + color each cost against the one before it, so a rising or
+        // falling trend reads at a glance instead of needing to compare
+        // numbers by eye - red for a cost increase, blue for a decrease.
+        const points = lines.map((l, i) => {
+          let cls = "";
+          if (i > 0) {
+            const prev = lines[i - 1].true_cost_incl_gst;
+            if (l.true_cost_incl_gst > prev) cls = "cost-up";
+            else if (l.true_cost_incl_gst < prev) cls = "cost-down";
+          }
+          return `${l.invoice_date}: <strong class="${cls}">${money(l.true_cost_incl_gst)}</strong> (${l.supplier})`;
+        }).join(" &rarr; ");
+        return `<div class="trend-row">
+          <strong>${escapeHtml(p ? p.Name : productId)}</strong>
+          ${barcode ? `<span class="trend-barcode">${escapeHtml(barcode)}</span>` : ""}
+          <div class="trend-points">${points}</div>
+        </div>`;
       });
 
     el.innerHTML = sections.length
