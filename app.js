@@ -53,12 +53,17 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("lookup-detail-close").addEventListener("click", () => Lookup.closeDetail());
   lookupModal.addEventListener("click", (e) => { if (e.target === lookupModal) Lookup.closeDetail(); });
 
+  const invoicePreviewModal = document.getElementById("invoice-preview-modal");
+  document.getElementById("invoice-preview-close").addEventListener("click", () => Review.closePreview());
+  invoicePreviewModal.addEventListener("click", (e) => { if (e.target === invoicePreviewModal) Review.closePreview(); });
+
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!memoryModal.classList.contains("hidden")) Memory.closeDetail();
     if (!powerbankModal.classList.contains("hidden")) Powerbank.closeDetail();
     if (!lookupModal.classList.contains("hidden")) Lookup.closeDetail();
     if (!salesModal.classList.contains("hidden")) Sales.closeDetail();
+    if (!invoicePreviewModal.classList.contains("hidden")) Review.closePreview();
   });
 });
 

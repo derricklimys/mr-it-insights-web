@@ -190,6 +190,74 @@ const Review = {
     document.getElementById("save-btn").addEventListener("click", () => this.save(inv));
   },
 
+  /** Read-only invoice pop-up used by other tabs (e.g. Margin's "View
+   * Invoice" button) to verify a line item against the actual scanned PDF
+   * without leaving that tab - switching to the Invoices tab loses whatever
+   * report was on screen and forces the user to re-open it, so this renders
+   * into its own modal instead. "Open in Invoices tab" still exists for
+   * when an actual edit is needed. */
+  async showPreview(invoiceId) {
+    const modal = document.getElementById("invoice-preview-modal");
+    const body = document.getElementById("invoice-preview-body");
+    modal.classList.remove("hidden");
+    body.innerHTML = `<p class="loading">Loading…</p>`;
+
+    const inv = this.invoices.find((i) => i.id === invoiceId);
+    if (!inv) {
+      body.innerHTML = `<p class="empty-state">Invoice not found.</p>`;
+      return;
+    }
+
+    let pdfUrl = null;
+    if (inv.pdfFileId) {
+      const blob = await Drive.downloadBlob(inv.pdfFileId);
+      pdfUrl = URL.createObjectURL(blob);
+    }
+
+    const r = inv.record;
+    const title = r.supplier ? `${escapeHtml(r.supplier)} — ${escapeHtml(r.invoice_number || "")}` : "New capture - not yet read";
+    const pdfPane = `<div class="pdf-pane">
+      ${pdfUrl ? `<iframe src="${pdfUrl}#navpanes=0" title="Invoice PDF"></iframe>` : `<p class="empty-state">No PDF found.</p>`}
+    </div>`;
+
+    body.innerHTML = `
+      <div class="detail-header">
+        <h2>${title}</h2>
+        <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
+      </div>
+      <div class="detail-split invoice-preview-split">
+        ${pdfPane}
+        <div class="lines-pane">
+          <div class="lines-table-wrap">
+            <table class="report-table">
+              <thead><tr><th>Description</th><th>Product</th><th>Qty</th><th>Unit Cost</th><th>True Cost</th></tr></thead>
+              <tbody>${(r.line_items || []).map((li) => `
+                <tr>
+                  <td>${escapeHtml(li.description)}</td>
+                  <td>${escapeHtml(li.matched_product_name || "")}</td>
+                  <td>${li.quantity ?? ""}</td>
+                  <td>${li.unit_price != null ? money(li.unit_price) : "—"}</td>
+                  <td>${li.true_cost_incl_gst != null ? money(li.true_cost_incl_gst) : "—"}</td>
+                </tr>`).join("")}</tbody>
+            </table>
+          </div>
+          <div class="detail-actions">
+            <button id="invoice-preview-edit" class="btn">Open in Invoices tab</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById("invoice-preview-edit").addEventListener("click", () => {
+      this.closePreview();
+      switchTab("review");
+      this.select(invoiceId);
+    });
+  },
+
+  closePreview() {
+    document.getElementById("invoice-preview-modal").classList.add("hidden");
+  },
+
   async save(inv) {
     const saveStatus = document.getElementById("save-status");
     saveStatus.textContent = "Saving…";

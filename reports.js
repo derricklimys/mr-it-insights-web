@@ -118,14 +118,17 @@ const Reports = {
       el.innerHTML = `<p class="empty-state">No confirmed invoices with matched products yet.</p>`;
       return;
     }
-    // Custom markup instead of the plain tableHtml() helper - each row needs
-    // to be clickable (jump to the source invoice on Review/Invoices) so
-    // Derrick can verify a suspicious margin against the actual scanned
-    // invoice, not just trust the extracted number.
+    // Custom markup instead of the plain tableHtml() helper - the barcode
+    // cell needs to stay plain selectable text (Derrick copy-pastes it), so
+    // "view the source invoice" is its own explicit button instead of a
+    // whole-row click handler that would fight with text selection. The
+    // button pops the invoice up in a modal (Review.showPreview) rather than
+    // switching to the Invoices tab, so Margin stays exactly as it was
+    // when he closes it.
     el.innerHTML = `<table class="report-table">
-      <thead><tr>${["Product", "Group", "Barcode", "Last Cost", "Current Price", "Margin $", "Margin %", "Invoice", "As of"].map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <thead><tr>${["Product", "Group", "Barcode", "Last Cost", "Current Price", "Margin $", "Margin %", "Invoice", "As of", ""].map((h) => `<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${rows.map((r) => `
-        <tr class="report-row-linked" data-invoice-id="${r.invoiceId}" title="Click to view the source invoice">
+        <tr>
           <td>${escapeHtml(r.name)}</td>
           <td>${escapeHtml(r.group || "")}</td>
           <td>${escapeHtml(r.barcode || "—")}</td>
@@ -135,13 +138,11 @@ const Reports = {
           <td>${r.marginPct.toFixed(1)}%</td>
           <td>${escapeHtml(r.supplier || "")} ${escapeHtml(r.invoiceNumber || "")}</td>
           <td>${r.date}</td>
+          <td><button class="link-btn" data-invoice-id="${r.invoiceId}">View Invoice</button></td>
         </tr>`).join("")}</tbody>
     </table>`;
-    el.querySelectorAll(".report-row-linked").forEach((row) => {
-      row.addEventListener("click", () => {
-        switchTab("review");
-        Review.select(row.dataset.invoiceId);
-      });
+    el.querySelectorAll("[data-invoice-id]").forEach((btn) => {
+      btn.addEventListener("click", () => Review.showPreview(btn.dataset.invoiceId));
     });
   },
 
