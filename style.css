@@ -182,8 +182,14 @@ main { padding: 20px; }
    .lines-table-wrap scrolls internally, so the scan stays visible no matter
    how far down the line-item list you are. */
 .detail-split { display: flex; gap: 16px; flex: 1; min-height: 0; }
-.pdf-pane { flex: 1.2; min-width: 0; height: 100%; }
+.pdf-pane { flex: 1.2; min-width: 0; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.pdf-pane-toolbar { flex-shrink: 0; margin-bottom: 8px; }
+.pdf-pane-body, #pdf-pane-body { flex: 1; min-height: 0; }
 .pdf-pane iframe { width: 100%; height: 100%; border: 1px solid var(--line); border-radius: 6px; }
+/* Collapsed (an already-confirmed invoice, PDF not fetched/shown by default)
+   - shrink to just the "View PDF" button instead of an empty flex-1.2 box,
+   so the lines pane gets the freed-up width. */
+.pdf-pane.pdf-pane-collapsed { flex: 0 0 auto; height: auto; align-self: flex-start; }
 .lines-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .lines-table-wrap { flex: 1; overflow-y: auto; min-height: 0; }
 

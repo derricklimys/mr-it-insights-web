@@ -116,24 +116,32 @@ const Review = {
     });
   },
 
-  async select(id) {
+  /** Lines pane sits right after the invoice list, PDF is the rightmost
+   * pane - line items are what you actually work with once an invoice has
+   * already been extracted, so that's the pane that should be next to the
+   * list you're clicking through, not the scan.
+   *
+   * The PDF itself is collapsed by default for an already-"OK" (confirmed)
+   * invoice - you already reviewed it, so re-fetching and rendering the scan
+   * on every click through the list is wasted bandwidth/time (this matters
+   * on a slow connection) for something you're unlikely to look at again.
+   * "View PDF" fetches and expands it on demand; still-unconfirmed invoices
+   * default to expanded since the scan is exactly what you need to review
+   * them. The PDF blob is cached on the invoice object so toggling it
+   * closed and back open doesn't re-download it. */
+  select(id) {
     this.selectedId = id;
     this.renderList();
     const inv = this.invoices.find((i) => i.id === id);
+    if (!inv) return;
+    this.pdfExpanded = inv.record.status !== "confirmed";
+    this._buildDetail(inv);
+  },
+
+  _buildDetail(inv) {
     const detail = document.getElementById("invoice-detail");
-    detail.innerHTML = `<p class="loading">Loading…</p>`;
-
-    let pdfUrl = null;
-    if (inv.pdfFileId) {
-      const blob = await Drive.downloadBlob(inv.pdfFileId);
-      pdfUrl = URL.createObjectURL(blob);
-    }
-
     const r = inv.record;
     const title = r.supplier ? `${escapeHtml(r.supplier)} — ${escapeHtml(r.invoice_number || "")}` : "New capture - not yet read";
-    const pdfPane = `<div class="pdf-pane">
-      ${pdfUrl ? `<iframe src="${pdfUrl}#navpanes=0" title="Invoice PDF"></iframe>` : `<p class="empty-state">No PDF found.</p>`}
-    </div>`;
 
     if (r.status === "uploaded" && r.line_items.length === 0) {
       detail.innerHTML = `
@@ -142,7 +150,8 @@ const Review = {
           <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
         </div>
         <p class="signal-reason">Captured ${escapeHtml(r.captured_by ? "by " + r.captured_by : "")} ${escapeHtml(r.captured_at || "")} - not read into line items yet. This gets processed manually in a batch, same as the original invoices.</p>
-        <div class="detail-split">${pdfPane}<div class="lines-pane"></div></div>`;
+        <div class="detail-split"><div class="lines-pane"></div><div class="pdf-pane" id="pdf-pane"></div></div>`;
+      this._refreshPdfPane(inv);
       return;
     }
 
@@ -152,7 +161,6 @@ const Review = {
         <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
       </div>
       <div class="detail-split">
-        ${pdfPane}
         <div class="lines-pane">
           <div class="lines-table-wrap">
             <table class="lines-table">
@@ -168,6 +176,7 @@ const Review = {
             <span id="save-status"></span>
           </div>
         </div>
+        <div class="pdf-pane" id="pdf-pane"></div>
       </div>`;
 
     const tbody = document.getElementById("lines-tbody");
@@ -188,6 +197,49 @@ const Review = {
       .join("");
 
     document.getElementById("save-btn").addEventListener("click", () => this.save(inv));
+    this._refreshPdfPane(inv);
+  },
+
+  /** Rebuilds only the #pdf-pane element - never touches the lines table,
+   * so toggling the PDF doesn't discard any in-progress edits to the line
+   * items above. */
+  _refreshPdfPane(inv) {
+    const pane = document.getElementById("pdf-pane");
+    if (!pane) return;
+    pane.classList.toggle("pdf-pane-collapsed", !this.pdfExpanded);
+
+    if (!this.pdfExpanded) {
+      pane.innerHTML = `<button id="pdf-toggle-btn" class="btn">View PDF</button>`;
+      document.getElementById("pdf-toggle-btn").addEventListener("click", () => this._togglePdf(inv));
+      return;
+    }
+
+    pane.innerHTML = `
+      <div class="pdf-pane-toolbar"><button id="pdf-toggle-btn" class="btn">Hide PDF</button></div>
+      <div id="pdf-pane-body"><p class="loading">Loading PDF…</p></div>`;
+    document.getElementById("pdf-toggle-btn").addEventListener("click", () => this._togglePdf(inv));
+    this._loadPdfBody(inv);
+  },
+
+  async _loadPdfBody(inv) {
+    if (!inv.pdfFileId) {
+      document.getElementById("pdf-pane-body").innerHTML = `<p class="empty-state">No PDF found.</p>`;
+      return;
+    }
+    if (!inv._pdfUrl) {
+      const blob = await Drive.downloadBlob(inv.pdfFileId);
+      inv._pdfUrl = URL.createObjectURL(blob);
+    }
+    // The user may have switched to a different invoice (or hidden the
+    // pane again) while this download was in flight.
+    const body = document.getElementById("pdf-pane-body");
+    if (!body) return;
+    body.innerHTML = `<iframe src="${inv._pdfUrl}#navpanes=0" title="Invoice PDF"></iframe>`;
+  },
+
+  _togglePdf(inv) {
+    this.pdfExpanded = !this.pdfExpanded;
+    this._refreshPdfPane(inv);
   },
 
   /** Read-only invoice pop-up used by other tabs (e.g. Margin's "View
