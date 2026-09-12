@@ -196,6 +196,15 @@ main { padding: 20px; }
   background: #fff;
   flex-shrink: 0;
 }
+.product-photo-clickable { cursor: zoom-in; }
+
+.photo-lightbox-box { display: flex; align-items: center; justify-content: center; padding: 12px; }
+.photo-lightbox-box img {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  display: block;
+}
 
 /* The PDF pane keeps a fixed height and never scrolls with the page - only
    .lines-table-wrap scrolls internally, so the scan stays visible no matter

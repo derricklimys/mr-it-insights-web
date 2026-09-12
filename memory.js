@@ -187,7 +187,7 @@ const Memory = {
 
     el.innerHTML = `
       <div class="detail-header">
-        ${p.photoUrl ? `<img class="product-photo-large" src="${p.photoUrl}" alt="">` : ""}
+        ${p.photoUrl ? `<img class="product-photo-large product-photo-clickable" id="memory-photo-large" src="${p.photoUrl}" alt="">` : ""}
         <div>
           <h2>${escapeHtml(p.name)}</h2>
           <p class="detail-barcode">${escapeHtml(p.barcodes.join(", ") || "No barcode on file")}</p>
@@ -221,6 +221,9 @@ const Memory = {
       <canvas id="memory-chart" width="900" height="320"></canvas>
     `;
     Catalog.drawChart(document.getElementById("memory-chart"), p);
+    if (p.photoUrl) {
+      document.getElementById("memory-photo-large").addEventListener("click", () => Catalog.openPhotoLightbox(p.photoUrl));
+    }
     document.getElementById("memory-detail-modal").classList.remove("hidden");
   },
 

@@ -247,4 +247,17 @@ const Catalog = {
       <tbody>${rows.map((r) => `<tr data-id="${r[0]}">${r.slice(1).map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
     </table>`;
   },
+
+  /** Shared by Memory and Powerbank detail views - the small product photo
+   * there is deliberately compact so it doesn't crowd the stats next to it;
+   * click it to see it full-size instead of only ever seeing a thumbnail. */
+  openPhotoLightbox(url) {
+    document.getElementById("photo-lightbox-img").src = url;
+    document.getElementById("photo-lightbox-modal").classList.remove("hidden");
+  },
+
+  closePhotoLightbox() {
+    document.getElementById("photo-lightbox-modal").classList.add("hidden");
+    document.getElementById("photo-lightbox-img").src = "";
+  },
 };

@@ -181,7 +181,7 @@ const Powerbank = {
 
     el.innerHTML = `
       <div class="detail-header">
-        ${p.photoUrl ? `<img class="product-photo-large" src="${p.photoUrl}" alt="">` : ""}
+        ${p.photoUrl ? `<img class="product-photo-large product-photo-clickable" id="powerbank-photo-large" src="${p.photoUrl}" alt="">` : ""}
         <div>
           <h2>${escapeHtml(p.name)}</h2>
           <p class="detail-barcode">${escapeHtml(p.barcodes.join(", ") || "No barcode on file")}</p>
@@ -220,6 +220,9 @@ const Powerbank = {
       <canvas id="powerbank-chart" width="900" height="320"></canvas>
     `;
     Catalog.drawChart(document.getElementById("powerbank-chart"), p);
+    if (p.photoUrl) {
+      document.getElementById("powerbank-photo-large").addEventListener("click", () => Catalog.openPhotoLightbox(p.photoUrl));
+    }
     document.getElementById("powerbank-detail-modal").classList.remove("hidden");
   },
 

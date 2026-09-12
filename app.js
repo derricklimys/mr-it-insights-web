@@ -57,6 +57,10 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("invoice-preview-close").addEventListener("click", () => Review.closePreview());
   invoicePreviewModal.addEventListener("click", (e) => { if (e.target === invoicePreviewModal) Review.closePreview(); });
 
+  const photoLightboxModal = document.getElementById("photo-lightbox-modal");
+  document.getElementById("photo-lightbox-close").addEventListener("click", () => Catalog.closePhotoLightbox());
+  photoLightboxModal.addEventListener("click", (e) => { if (e.target === photoLightboxModal) Catalog.closePhotoLightbox(); });
+
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!memoryModal.classList.contains("hidden")) Memory.closeDetail();
@@ -64,6 +68,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!lookupModal.classList.contains("hidden")) Lookup.closeDetail();
     if (!salesModal.classList.contains("hidden")) Sales.closeDetail();
     if (!invoicePreviewModal.classList.contains("hidden")) Review.closePreview();
+    if (!photoLightboxModal.classList.contains("hidden")) Catalog.closePhotoLightbox();
   });
 });
 
