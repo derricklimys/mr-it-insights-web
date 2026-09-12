@@ -26,6 +26,10 @@ const Powerbank = {
     statusEl.textContent = "Loading Verbatim pricelist and reserve stock...";
     const verbatimMap = (await this._loadDriveJson("verbatim_pn_map.json")) || {};
     const reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
+    // Photos are a separate file from verbatimMap on purpose - verbatim_pn_map.json
+    // gets wholesale-overwritten on every pricelist refresh, which would wipe out
+    // photo links if they lived in the same file.
+    const productPhotos = (await this._loadDriveJson("product_photos.json")) || {};
     // verbatim_pn_map.json is a single current snapshot, not a dated
     // history - wrap it as one "history" entry per barcode so it fits the
     // same priceHistory shape Catalog.computeSignal/drawChart already
@@ -98,6 +102,7 @@ const Powerbank = {
         [r.Id],
       );
       const reserveEntry = barcodes.map((bc) => reserveStock[bc]).find(Boolean);
+      const photoEntry = barcodes.map((bc) => productPhotos[bc]).find(Boolean);
       const aroniumStock = stockByProduct[r.Id] || 0;
       const reserveQty = reserveEntry ? reserveEntry.quantity : 0;
       const invoiceCosts = invoiceCostsByProduct[r.Id] || [];
@@ -115,6 +120,8 @@ const Powerbank = {
 
       return {
         productId: r.Id, name: r.Name, currentPrice: r.Price, barcodes,
+        photoThumbUrl: photoEntry ? photoEntry.thumb_url : null,
+        photoUrl: photoEntry ? photoEntry.url : null,
         priceHistoryPn: verbatimEntry ? verbatimEntry.pn : null,
         priceHistory,
         invoiceCosts,
@@ -146,9 +153,10 @@ const Powerbank = {
       return;
     }
     el.innerHTML = Catalog.tableHtmlWithRowIds(
-      ["", "Product", "Barcode", "Model", "Combined Stock", "Margin", "Signal"],
+      ["", "Photo", "Product", "Barcode", "Model", "Combined Stock", "Margin", "Signal"],
       this.products.map((p) => [
         p.productId,
+        p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
         escapeHtml(p.name),
         escapeHtml(p.barcodes[0] || "—"),
         escapeHtml(p.priceHistoryPn || "—"),
@@ -173,6 +181,7 @@ const Powerbank = {
 
     el.innerHTML = `
       <div class="detail-header">
+        ${p.photoUrl ? `<img class="product-photo-large" src="${p.photoUrl}" alt="">` : ""}
         <div>
           <h2>${escapeHtml(p.name)}</h2>
           <p class="detail-barcode">${escapeHtml(p.barcodes.join(", ") || "No barcode on file")}</p>

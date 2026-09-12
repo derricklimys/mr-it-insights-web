@@ -19,6 +19,9 @@ const Memory = {
     statusEl.textContent = "Loading price history and reserve stock...";
     const priceHistory = (await this._loadDriveJson("sandisk_price_history.json")) || {};
     const reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
+    // Shared with Powerbank - a separate file from priceHistory on purpose,
+    // since that file gets wholesale-overwritten on every pricelist refresh.
+    const productPhotos = (await this._loadDriveJson("product_photos.json")) || {};
 
     statusEl.textContent = "Cross-referencing your Memory catalog...";
     const products = Reports.query(`
@@ -87,6 +90,7 @@ const Memory = {
         [r.Id],
       );
       const reserveEntry = barcodes.map((bc) => reserveStock[bc]).find(Boolean);
+      const photoEntry = barcodes.map((bc) => productPhotos[bc]).find(Boolean);
       const aroniumStock = stockByProduct[r.Id] || 0;
       const reserveQty = reserveEntry ? reserveEntry.quantity : 0;
       const invoiceCosts = invoiceCostsByProduct[r.Id] || [];
@@ -104,6 +108,8 @@ const Memory = {
 
       return {
         productId: r.Id, name: r.Name, currentPrice: r.Price, barcodes,
+        photoThumbUrl: photoEntry ? photoEntry.thumb_url : null,
+        photoUrl: photoEntry ? photoEntry.url : null,
         priceHistoryPn: priceMatch ? priceMatch.pn : null,
         priceHistory: priceMatch ? priceMatch.entries : [],
         invoiceCosts,
@@ -150,9 +156,10 @@ const Memory = {
       return;
     }
     el.innerHTML = Catalog.tableHtmlWithRowIds(
-      ["", "Product", "Barcode", "Combined Stock", "Margin", "Signal"],
+      ["", "Photo", "Product", "Barcode", "Combined Stock", "Margin", "Signal"],
       this.products.map((p) => [
         p.productId,
+        p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
         escapeHtml(p.name),
         escapeHtml(p.barcodes[0] || "—"),
         `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
@@ -180,6 +187,7 @@ const Memory = {
 
     el.innerHTML = `
       <div class="detail-header">
+        ${p.photoUrl ? `<img class="product-photo-large" src="${p.photoUrl}" alt="">` : ""}
         <div>
           <h2>${escapeHtml(p.name)}</h2>
           <p class="detail-barcode">${escapeHtml(p.barcodes.join(", ") || "No barcode on file")}</p>
