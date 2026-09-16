@@ -21,7 +21,10 @@ const ROSTER_ALERTS_FILE = "roster_alerts.json";
 
 const ROSTER_PEOPLE = ["Michael", "Julie", "Agnes", "Derrick"];
 const ROSTER_PKEY = { Michael: "mi", Julie: "ju", Agnes: "ag", Derrick: "de" };
-const ROSTER_PLABEL = { Michael: "Michael", Julie: "Julie", Agnes: "Agnes", Derrick: "Derrick" };
+// "Derrick" stays the internal person key everywhere (data already saved to
+// Drive under that name, plus every CSS class/variable) - only the label
+// shown on screen changes, per his own preferred display name.
+const ROSTER_PLABEL = { Michael: "Michael", Julie: "Julie", Agnes: "Agnes", Derrick: "Kelvin" };
 const ROSTER_SHOP_OPEN = "11:00";
 const ROSTER_SHOP_CLOSE = "21:00";
 const ROSTER_ANCHOR_SAT = "2026-09-19"; // confirmed with Derrick: this Sat = Michael AM, this Sun = Julie AM
@@ -77,6 +80,7 @@ const ROSTER_SEED_OVERRIDES = [
   { date: "2026-11-28", person: "Michael", status: "OFF", hours: null, tag: "confirmed" },
   { date: "2026-12-05", person: "Julie", status: "FULL", hours: "11:00-21:00", tag: "confirmed" },
   { date: "2026-12-12", person: "Agnes", status: "COVER", hours: "17:30-21:00", tag: "swap" },
+  { date: "2026-12-12", person: "Derrick", status: "OFF", hours: null, tag: "swap" },
   { date: "2026-12-13", person: "Derrick", status: "PM", hours: "14:00-21:00", tag: "swap" },
   { date: "2026-12-13", person: "Agnes", status: "OFF", hours: null, tag: "swap" },
   { date: "2026-12-25", person: "Julie", status: "AM", hours: "11:00-17:00", tag: "alert" },
@@ -356,7 +360,7 @@ const Roster = {
     if (isMe) cls += " roster-row-you";
     if (w.tag === "alert") cls += " pending-tag";
     else if (w.tag === "confirmed" || w.tag === "swap") cls += " confirmed-tag";
-    const name = isMe ? `★ ${w.person}` : w.person;
+    const name = isMe ? `★ ${ROSTER_PLABEL[w.person]}` : ROSTER_PLABEL[w.person];
     return `<div class="${cls}"><span class="who">${escapeHtml(name)}</span> <span class="hrs">${slot} &middot; ${escapeHtml(w.hours)}</span></div>`;
   },
 
@@ -366,7 +370,7 @@ const Roster = {
    * working shift, and it's what flips the cell into the irregular-day color. */
   _renderAbsentRow(a) {
     const text = a.status === "LEAVE" ? "on leave" : "off";
-    return `<div class="roster-row roster-row-absent"><span class="who">${escapeHtml(a.person)}</span> <span class="hrs">${text}</span></div>`;
+    return `<div class="roster-row roster-row-absent"><span class="who">${escapeHtml(ROSTER_PLABEL[a.person])}</span> <span class="hrs">${text}</span></div>`;
   },
 
   _prefillOverrideDate(dateStr) {
@@ -402,7 +406,7 @@ const Roster = {
     el.innerHTML = sorted.map((p) => `
       <div class="roster-leave-card">
         <span class="who-dot" style="background:var(--${ROSTER_PKEY[p.person]})"></span>
-        <strong>${escapeHtml(p.person)}</strong>
+        <strong>${escapeHtml(ROSTER_PLABEL[p.person])}</strong>
         <span>${escapeHtml(p.start)} to ${escapeHtml(p.end)}</span>
         <button class="btn roster-leave-remove" data-id="${p.id}">Remove</button>
       </div>`).join("");
@@ -422,7 +426,7 @@ const Roster = {
       <div class="roster-override-card">
         <span class="who-dot" style="background:var(--${ROSTER_PKEY[o.person]})"></span>
         <strong>${escapeHtml(o.date)}</strong>
-        <span>${escapeHtml(o.person)} — ${escapeHtml(o.status)}${o.hours ? " " + escapeHtml(o.hours) : ""} (${escapeHtml(o.tag || "confirmed")})</span>
+        <span>${escapeHtml(ROSTER_PLABEL[o.person])} — ${escapeHtml(o.status)}${o.hours ? " " + escapeHtml(o.hours) : ""} (${escapeHtml(o.tag || "confirmed")})</span>
         <button class="btn roster-ov-remove" data-date="${o.date}" data-person="${o.person}">Remove</button>
       </div>`).join("");
     el.querySelectorAll(".roster-ov-remove").forEach((btn) => {
