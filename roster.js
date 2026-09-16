@@ -21,7 +21,7 @@ const ROSTER_ALERTS_FILE = "roster_alerts.json";
 
 const ROSTER_PEOPLE = ["Michael", "Julie", "Agnes", "Derrick"];
 const ROSTER_PKEY = { Michael: "mi", Julie: "ju", Agnes: "ag", Derrick: "de" };
-const ROSTER_PLABEL = { Michael: "Mi", Julie: "Ju", Agnes: "Ag", Derrick: "De" };
+const ROSTER_PLABEL = { Michael: "Michael", Julie: "Julie", Agnes: "Agnes", Derrick: "Derrick" };
 const ROSTER_SHOP_OPEN = "11:00";
 const ROSTER_SHOP_CLOSE = "21:00";
 const ROSTER_ANCHOR_SAT = "2026-09-19"; // confirmed with Derrick: this Sat = Michael AM, this Sun = Julie AM
@@ -233,10 +233,40 @@ const Roster = {
     }
     const gaps = rosterComputeGaps(shifts);
     const dayAlerts = this.alerts.filter((a) => a.date === dateStr);
-    return { shifts, gaps, alerts: dayAlerts };
+    return { base, shifts, gaps, alerts: dayAlerts };
+  },
+
+  /** What actually matters for reading a day at a glance: who's really
+   * covering (whether or not it's their normal day - a substitute shows up
+   * here too), and separately, anyone whose NORMAL working day this is but
+   * who isn't covering it today (on leave, or given the day off). Someone
+   * who neither normally works today nor is covering it isn't mentioned at
+   * all - that's the "don't show Michael on an ordinary Monday" rule. */
+  daySummary(dateStr) {
+    const { base, shifts, gaps, alerts } = this.computeDay(dateStr);
+    const WORKING = ["AM", "PM", "FULL", "COVER"];
+    const workers = [];
+    const absent = [];
+    for (const person of ROSTER_PEOPLE) {
+      const final = shifts[person];
+      const isWorkingNow = WORKING.includes(final.status);
+      const isUsual = base[person][0] !== "OFF";
+      if (isWorkingNow) workers.push({ person, status: final.status, hours: final.hours, tag: final.tag });
+      if (isUsual && !isWorkingNow) absent.push({ person, status: final.status });
+    }
+    workers.sort((a, b) => rosterTimeToMin((a.hours || "23:59").split("-")[0]) - rosterTimeToMin((b.hours || "23:59").split("-")[0]));
+    return { workers, absent, gaps, alerts, isIrregular: absent.length > 0 };
+  },
+
+  _slotLabel(status, hours) {
+    if (status === "FULL") return "whole day";
+    if (status === "AM" || status === "PM") return status;
+    const startMin = rosterTimeToMin(hours.split("-")[0]);
+    return startMin < 14 * 60 ? "AM" : "PM";
   },
 
   async render() {
+    await this.ensureLoaded();
     document.getElementById("roster-prev-btn").onclick = () => this._shiftMonth(-1);
     document.getElementById("roster-next-btn").onclick = () => this._shiftMonth(1);
     document.getElementById("roster-alert-add-btn").onclick = () => this._addAlert();
@@ -268,41 +298,44 @@ const Roster = {
     const firstT = rosterParseUTC(firstStr);
     const daysInMonth = new Date(Date.UTC(this.viewYear, this.viewMonth, 0)).getUTCDate();
     const leadBlank = (new Date(firstT).getUTCDay() + 6) % 7; // Monday-start
+    const totalCells = Math.ceil((leadBlank + daysInMonth) / 7) * 7; // always full weeks - pad with real adjacent-month days, never blanks
 
     const el = document.getElementById("roster-calendar");
     let html = "";
     for (const n of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) html += `<div class="roster-dow">${n}</div>`;
-    for (let i = 0; i < leadBlank; i++) html += `<div class="roster-cell empty"></div>`;
 
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = rosterAddDays(firstStr, day - 1);
-      const { shifts, gaps, alerts } = this.computeDay(dateStr);
+    for (let i = 0; i < totalCells; i++) {
+      const dateStr = rosterAddDays(firstStr, i - leadBlank);
+      const inCurrentMonth = i >= leadBlank && i < leadBlank + daysInMonth;
+      const dayNum = Number(dateStr.slice(8, 10));
+      const { workers, absent, gaps, alerts, isIrregular } = this.daySummary(dateStr);
       const hasGap = gaps.length > 0;
       const hasAlert = alerts.length > 0;
       const wd = new Date(rosterParseUTC(dateStr)).getUTCDay(); // 0=Sun..6=Sat
       const isWeekend = wd === 0 || wd === 6;
       const phName = ROSTER_PUBLIC_HOLIDAYS[dateStr];
-      const derrickWorking = ["AM", "PM", "FULL", "COVER"].includes(shifts.Derrick.status);
-      let rowsHtml = "";
-      for (const person of ROSTER_PEOPLE) rowsHtml += this._renderRow(person, shifts[person]);
+
+      const workerRows = workers.map((w) => this._renderWorkerRow(w)).join("");
+      const absentRows = absent.map((a) => this._renderAbsentRow(a)).join("");
       const gapNote = hasGap
         ? `<div class="roster-gap-note">Gap ${gaps.map(([a, b]) => `${rosterMinToHHMM(a)}–${rosterMinToHHMM(b)}`).join(", ")}</div>`
         : "";
       const cellCls = [
         "roster-cell",
+        inCurrentMonth ? "" : "other-month",
         hasGap ? "has-gap" : "",
         hasAlert ? "has-alert" : "",
         isWeekend ? "is-weekend" : "",
+        isIrregular ? "is-irregular" : "",
         phName ? "is-holiday" : "",
-        derrickWorking ? "derrick-working" : "",
       ].filter(Boolean).join(" ");
       html += `<div class="${cellCls}" data-date="${dateStr}">
         <div class="roster-cell-head">
-          <span class="roster-daynum">${day}</span>
+          <span class="roster-daynum">${dayNum}</span>
           ${hasAlert ? `<span class="roster-alert-dot" title="${escapeHtml(alerts.map((a) => a.text).join(" / "))}">?</span>` : ""}
         </div>
         ${phName ? `<div class="roster-ph-tag">${escapeHtml(phName)}</div>` : ""}
-        <div class="roster-rows">${rowsHtml}</div>
+        <div class="roster-rows">${workerRows}${absentRows}</div>
         ${gapNote}
       </div>`;
     }
@@ -312,20 +345,28 @@ const Roster = {
     });
   },
 
-  _renderRow(person, shift) {
-    const status = shift.status;
-    const key = ROSTER_PKEY[person];
-    const label = ROSTER_PLABEL[person];
+  /** A person actually covering a shift today - shown as "Name - AM (hours)"
+   * etc. Derrick gets a star and his own highlight style so his own shifts
+   * are the easiest thing on the page to spot. */
+  _renderWorkerRow(w) {
+    const key = ROSTER_PKEY[w.person];
+    const slot = this._slotLabel(w.status, w.hours);
+    const isMe = w.person === "Derrick";
     let cls = `roster-row roster-row-${key}`;
-    let text;
-    if (status === "LEAVE") { cls += " on-leave"; text = "on leave"; }
-    else if (status === "OFF") { cls += " off-regular"; text = shift.tag === "swap" ? "off (swap)" : "off"; }
-    else if (status === "FULL") { text = `${shift.hours} (whole day)`; }
-    else { text = shift.hours; }
-    if (shift.tag === "confirmed") cls += " confirmed-tag";
-    else if (shift.tag === "swap") cls += " confirmed-tag";
-    else if (shift.tag === "alert") cls += " pending-tag";
-    return `<div class="${cls}"><span class="who">${label}</span> <span class="hrs">${escapeHtml(text)}</span></div>`;
+    if (isMe) cls += " roster-row-you";
+    if (w.tag === "alert") cls += " pending-tag";
+    else if (w.tag === "confirmed" || w.tag === "swap") cls += " confirmed-tag";
+    const name = isMe ? `★ ${w.person}` : w.person;
+    return `<div class="${cls}"><span class="who">${escapeHtml(name)}</span> <span class="hrs">${slot} &middot; ${escapeHtml(w.hours)}</span></div>`;
+  },
+
+  /** Someone whose normal working day this is, but who isn't covering it -
+   * on leave, or given the day off. This is the "irregularity" signal: named
+   * explicitly, in its own muted/struck style so it never looks like a
+   * working shift, and it's what flips the cell into the irregular-day color. */
+  _renderAbsentRow(a) {
+    const text = a.status === "LEAVE" ? "on leave" : "off";
+    return `<div class="roster-row roster-row-absent"><span class="who">${escapeHtml(a.person)}</span> <span class="hrs">${text}</span></div>`;
   },
 
   _prefillOverrideDate(dateStr) {

@@ -22,6 +22,7 @@
   --de: #B8802E; --de-soft: #F6EAD6;
   --weekend-bg: #E9EDF5;
   --holiday: #A2503B; --holiday-bg: #F6E3DC;
+  --irregular-bg: #EEE5F5;
 }
 
 * { box-sizing: border-box; }
@@ -622,10 +623,10 @@ main { padding: 20px; }
 .roster-swatch-alert { background: var(--warn-soft); border: 1.5px dashed var(--warn); }
 .roster-swatch-weekend { background: var(--weekend-bg); border: 1px solid var(--line); }
 .roster-swatch-holiday { background: var(--holiday-bg); border: 1px solid var(--holiday); }
-.roster-swatch-derrick { background: var(--surface-raised); border: 1px solid var(--line); border-left: 3px solid var(--de); }
+.roster-swatch-irregular { background: var(--irregular-bg); border: 1px solid var(--ink-faint); }
 
 .roster-calendar {
-  display: grid; grid-template-columns: repeat(7, minmax(110px, 1fr));
+  display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr));
   gap: 6px; overflow-x: auto; margin-bottom: 22px;
 }
 .roster-dow {
@@ -634,14 +635,14 @@ main { padding: 20px; }
 }
 .roster-cell {
   background: var(--surface-raised); border: 1px solid var(--line); border-radius: 8px;
-  padding: 7px; min-height: 128px; display: flex; flex-direction: column; gap: 3px;
+  padding: 7px; min-height: 108px; display: flex; flex-direction: column; gap: 3px;
   cursor: pointer;
 }
 .roster-cell:hover { border-color: var(--accent); }
-.roster-cell.empty { background: none; border: none; cursor: default; }
+.roster-cell.other-month { opacity: 0.55; }
 .roster-cell.is-weekend { background: var(--weekend-bg); }
+.roster-cell.is-irregular { background: var(--irregular-bg); }
 .roster-cell.is-holiday { background: var(--holiday-bg); }
-.roster-cell.derrick-working { border-left: 4px solid var(--de); padding-left: 4px; }
 .roster-cell.has-gap { border-color: var(--error); box-shadow: 0 0 0 1px var(--error) inset; }
 .roster-cell.has-alert:not(.has-gap) { border-color: var(--warn); }
 .roster-ph-tag {
@@ -658,17 +659,22 @@ main { padding: 20px; }
 }
 .roster-row .who { font-weight: 700; flex: none; }
 .roster-row .hrs { color: var(--ink-faint); }
-.roster-row.off-regular { background: none; color: var(--ink-faint); font-weight: 400; }
-.roster-row.off-regular .who { font-weight: 600; color: var(--ink-faint); }
-.roster-row.on-leave { background: var(--paper); color: var(--ink-faint); text-decoration: line-through; }
 .roster-row.pending-tag { border: 1.4px dashed var(--warn); background: var(--warn-soft); }
 .roster-row.confirmed-tag { border: 1px solid var(--ok); }
 .roster-row-mi { background: var(--mi-soft); } .roster-row-mi .who { color: var(--mi); }
 .roster-row-ju { background: var(--ju-soft); } .roster-row-ju .who { color: var(--ju); }
 .roster-row-ag { background: var(--ag-soft); } .roster-row-ag .who { color: var(--ag); }
 .roster-row-de { background: var(--de-soft); } .roster-row-de .who { color: var(--de); }
-.roster-row.off-regular.roster-row-mi, .roster-row.off-regular.roster-row-ju,
-.roster-row.off-regular.roster-row-ag, .roster-row.off-regular.roster-row-de { background: none; }
+
+/* Derrick's own shifts - the one thing this roster most needs to make obvious */
+.roster-row-you { border: 1.5px solid var(--de); font-weight: 700; }
+.roster-row-you .who { color: var(--de); }
+
+/* Someone whose normal working day this is, but who is off/on leave today */
+.roster-row-absent {
+  background: var(--paper); color: var(--ink-soft); text-decoration: line-through;
+}
+.roster-row-absent .who { color: var(--ink-soft); }
 .roster-gap-note { font-size: 11.5px; color: var(--error); margin-top: auto; }
 
 .roster-alert-card {
