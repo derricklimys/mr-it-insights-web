@@ -269,6 +269,35 @@ const Roster = {
     return startMin < 14 * 60 ? "AM" : "PM";
   },
 
+  _fmtShort(dateStr) {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const [, m, d] = dateStr.split("-").map(Number);
+    return `${d} ${months[m - 1]}`;
+  },
+
+  /** Anyone whose leave period touches the month currently on screen - shown
+   * as a standing banner above the grid, always with the leave's *full*
+   * date range (even the part that falls outside this month), so it reads
+   * the same way switching from Oct to Nov as it does the other way. */
+  renderMonthLeave() {
+    const el = document.getElementById("roster-month-leave");
+    const pad = String(this.viewMonth).padStart(2, "0");
+    const monthStart = `${this.viewYear}-${pad}-01`;
+    const daysInMonth = new Date(Date.UTC(this.viewYear, this.viewMonth, 0)).getUTCDate();
+    const monthEnd = `${this.viewYear}-${pad}-${String(daysInMonth).padStart(2, "0")}`;
+    const overlapping = this.leavePeriods
+      .filter((p) => p.start <= monthEnd && p.end >= monthStart)
+      .sort((a, b) => a.start.localeCompare(b.start));
+    if (!overlapping.length) {
+      el.innerHTML = "";
+      return;
+    }
+    el.innerHTML = overlapping.map((p) => `
+      <div class="roster-month-leave-item" style="border-left-color:var(--${ROSTER_PKEY[p.person]})">
+        <strong>${escapeHtml(ROSTER_PLABEL[p.person])}</strong> on leave: ${escapeHtml(this._fmtShort(p.start))} to ${escapeHtml(this._fmtShort(p.end))}
+      </div>`).join("");
+  },
+
   async render() {
     await this.ensureLoaded();
     document.getElementById("roster-prev-btn").onclick = () => this._shiftMonth(-1);
@@ -294,6 +323,7 @@ const Roster = {
   },
 
   renderCalendar() {
+    this.renderMonthLeave();
     const monthNames = ["January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"];
     document.getElementById("roster-month-label").textContent = `${monthNames[this.viewMonth - 1]} ${this.viewYear}`;

@@ -625,6 +625,13 @@ main { padding: 20px; }
 .roster-swatch-holiday { background: var(--holiday-bg); border: 1px solid var(--holiday); }
 .roster-swatch-irregular { background: var(--irregular-bg); border: 1px solid var(--ink-faint); }
 
+.roster-month-leave { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.roster-month-leave-item {
+  background: var(--surface-raised); border: 1px solid var(--line); border-left: 4px solid var(--ink-faint);
+  border-radius: 6px; padding: 6px 12px; font-size: 13px;
+}
+.roster-month-leave-item strong { margin-right: 2px; }
+
 .roster-calendar {
   display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr));
   gap: 6px; overflow-x: auto; margin-bottom: 22px;
