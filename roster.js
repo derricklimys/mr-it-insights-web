@@ -26,6 +26,27 @@ const ROSTER_SHOP_OPEN = "11:00";
 const ROSTER_SHOP_CLOSE = "21:00";
 const ROSTER_ANCHOR_SAT = "2026-09-19"; // confirmed with Derrick: this Sat = Michael AM, this Sun = Julie AM
 
+// 2026 Singapore public holidays (MOM gazetted). When one falls on a Sunday,
+// the standard rule is the following Monday is the paid holiday instead -
+// applied here for Vesak and National Day. Deepavali is the one deliberate
+// exception: Derrick treats the actual Sunday (8 Nov) as the staff's holiday
+// for this shop and runs 9 Nov as a normal working Monday - his explicit call,
+// not the general rule. Hari Raya Puasa/Haji dates are moon-sighting-based
+// and not yet officially confirmed for 2026 - update these two once gazetted.
+const ROSTER_PUBLIC_HOLIDAYS = {
+  "2026-01-01": "New Year's Day",
+  "2026-02-17": "Chinese New Year",
+  "2026-02-18": "Chinese New Year",
+  "2026-03-21": "Hari Raya Puasa (est.)",
+  "2026-04-03": "Good Friday",
+  "2026-05-01": "Labour Day",
+  "2026-05-27": "Hari Raya Haji (est.)",
+  "2026-06-01": "Vesak Day (observed)",
+  "2026-08-10": "National Day (observed)",
+  "2026-11-08": "Deepavali",
+  "2026-12-25": "Christmas Day",
+};
+
 // Seed data: everything worked out by hand for Oct-Dec 2026 before this tab
 // existed, so the first load isn't an empty shell. Only used the very first
 // time each file doesn't exist yet in Drive - after that, Drive is the only
@@ -258,16 +279,29 @@ const Roster = {
       const { shifts, gaps, alerts } = this.computeDay(dateStr);
       const hasGap = gaps.length > 0;
       const hasAlert = alerts.length > 0;
+      const wd = new Date(rosterParseUTC(dateStr)).getUTCDay(); // 0=Sun..6=Sat
+      const isWeekend = wd === 0 || wd === 6;
+      const phName = ROSTER_PUBLIC_HOLIDAYS[dateStr];
+      const derrickWorking = ["AM", "PM", "FULL", "COVER"].includes(shifts.Derrick.status);
       let rowsHtml = "";
       for (const person of ROSTER_PEOPLE) rowsHtml += this._renderRow(person, shifts[person]);
       const gapNote = hasGap
         ? `<div class="roster-gap-note">Gap ${gaps.map(([a, b]) => `${rosterMinToHHMM(a)}–${rosterMinToHHMM(b)}`).join(", ")}</div>`
         : "";
-      html += `<div class="roster-cell${hasGap ? " has-gap" : ""}${hasAlert ? " has-alert" : ""}" data-date="${dateStr}">
+      const cellCls = [
+        "roster-cell",
+        hasGap ? "has-gap" : "",
+        hasAlert ? "has-alert" : "",
+        isWeekend ? "is-weekend" : "",
+        phName ? "is-holiday" : "",
+        derrickWorking ? "derrick-working" : "",
+      ].filter(Boolean).join(" ");
+      html += `<div class="${cellCls}" data-date="${dateStr}">
         <div class="roster-cell-head">
           <span class="roster-daynum">${day}</span>
           ${hasAlert ? `<span class="roster-alert-dot" title="${escapeHtml(alerts.map((a) => a.text).join(" / "))}">?</span>` : ""}
         </div>
+        ${phName ? `<div class="roster-ph-tag">${escapeHtml(phName)}</div>` : ""}
         <div class="roster-rows">${rowsHtml}</div>
         ${gapNote}
       </div>`;
@@ -280,13 +314,12 @@ const Roster = {
 
   _renderRow(person, shift) {
     const status = shift.status;
-    if (status === "OFF" && !shift.tag) return "";
     const key = ROSTER_PKEY[person];
     const label = ROSTER_PLABEL[person];
     let cls = `roster-row roster-row-${key}`;
     let text;
-    if (status === "LEAVE") { cls += " off"; text = "on leave"; }
-    else if (status === "OFF") { cls += " off"; text = shift.tag === "swap" ? "off (swap)" : "off"; }
+    if (status === "LEAVE") { cls += " on-leave"; text = "on leave"; }
+    else if (status === "OFF") { cls += " off-regular"; text = shift.tag === "swap" ? "off (swap)" : "off"; }
     else if (status === "FULL") { text = `${shift.hours} (whole day)`; }
     else { text = shift.hours; }
     if (shift.tag === "confirmed") cls += " confirmed-tag";
