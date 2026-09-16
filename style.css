@@ -670,11 +670,13 @@ main { padding: 20px; }
 .roster-row-you { border: 1.5px solid var(--de); font-weight: 700; }
 .roster-row-you .who { color: var(--de); }
 
-/* Someone whose normal working day this is, but who is off/on leave today */
+/* Someone whose normal working day this is, but who is off/on leave today -
+   only the name is struck through, the "on leave"/"off" text stays plain
+   and readable */
 .roster-row-absent {
-  background: var(--paper); color: var(--ink-soft); text-decoration: line-through;
+  background: var(--paper); color: var(--ink-soft);
 }
-.roster-row-absent .who { color: var(--ink-soft); }
+.roster-row-absent .who { color: var(--ink-soft); text-decoration: line-through; }
 .roster-gap-note { font-size: 11.5px; color: var(--error); margin-top: auto; }
 
 .roster-alert-card {
