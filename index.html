@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mr IT Insights</title>
-<link rel="stylesheet" href="style.css?v=20260912b">
+<title>Mr IT Ops</title>
+<link rel="stylesheet" href="style.css?v=20260917a">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
 
 <header class="topbar">
-  <h1>Mr IT Insights</h1>
+  <h1>Mr IT Ops</h1>
   <div class="topbar-right">
     <div id="sync-area" class="sync-area hidden">
       <button id="sync-btn" class="btn" title="Re-fetch the latest Aronium data and invoice list">Sync</button>
@@ -31,6 +31,7 @@
   <button class="tab-btn" data-tab="powerbank">Powerbank</button>
   <button class="tab-btn" data-tab="lookup">Lookup</button>
   <button class="tab-btn" data-tab="order">Order Memory</button>
+  <button class="tab-btn" data-tab="roster">Roster</button>
 </nav>
 
 <main id="app" class="hidden">
@@ -124,6 +125,78 @@
       <div id="order-add-candidates"></div>
     </div>
   </section>
+
+  <section id="tab-roster" class="tab-panel">
+    <div class="roster-layout">
+      <div class="roster-cal-head">
+        <div class="roster-month-nav">
+          <button id="roster-prev-btn" class="btn" title="Previous month">&laquo;</button>
+          <h2 id="roster-month-label" class="roster-month-label"></h2>
+          <button id="roster-next-btn" class="btn" title="Next month">&raquo;</button>
+        </div>
+        <div class="roster-legend">
+          <span class="roster-legend-item"><span class="roster-dot roster-dot-mi"></span>Michael</span>
+          <span class="roster-legend-item"><span class="roster-dot roster-dot-ju"></span>Julie</span>
+          <span class="roster-legend-item"><span class="roster-dot roster-dot-ag"></span>Agnes</span>
+          <span class="roster-legend-item"><span class="roster-dot roster-dot-de"></span>Derrick</span>
+          <span class="roster-legend-item"><span class="roster-swatch roster-swatch-gap"></span>Uncovered gap</span>
+          <span class="roster-legend-item"><span class="roster-swatch roster-swatch-alert"></span>Reminder</span>
+        </div>
+      </div>
+      <div id="roster-calendar" class="roster-calendar"></div>
+
+      <h2 class="lookup-heading">Reminders</h2>
+      <div id="roster-alerts"></div>
+      <div class="roster-form roster-alert-form">
+        <input type="date" id="roster-alert-date">
+        <input type="text" id="roster-alert-text" placeholder="What do you need to remember to do?">
+        <button id="roster-alert-add-btn" class="btn">Add reminder</button>
+      </div>
+
+      <h2 class="lookup-heading">Leave periods</h2>
+      <div id="roster-leave-list"></div>
+      <div class="roster-form">
+        <select id="roster-leave-person">
+          <option value="Michael">Michael</option>
+          <option value="Julie">Julie</option>
+          <option value="Agnes">Agnes</option>
+          <option value="Derrick">Derrick</option>
+        </select>
+        <input type="date" id="roster-leave-start">
+        <span>to</span>
+        <input type="date" id="roster-leave-end">
+        <button id="roster-leave-add-btn" class="btn">Add leave</button>
+      </div>
+
+      <h2 class="lookup-heading">Shift overrides</h2>
+      <p class="report-status">Use this to fill a gap, swap a shift, or record a one-off change from the default rota. One entry per person per date &mdash; adding another for the same date and person replaces it.</p>
+      <div id="roster-override-list"></div>
+      <div class="roster-form roster-override-form">
+        <input type="date" id="roster-ov-date">
+        <select id="roster-ov-person">
+          <option value="Michael">Michael</option>
+          <option value="Julie">Julie</option>
+          <option value="Agnes">Agnes</option>
+          <option value="Derrick">Derrick</option>
+        </select>
+        <select id="roster-ov-status">
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+          <option value="FULL">Whole day</option>
+          <option value="COVER">Covering (custom hours)</option>
+          <option value="OFF">Off</option>
+        </select>
+        <input type="text" id="roster-ov-hours" placeholder="11:00-17:00">
+        <select id="roster-ov-tag">
+          <option value="confirmed">Confirmed</option>
+          <option value="swap">Swap</option>
+          <option value="alert">Pending / not yet confirmed</option>
+        </select>
+        <button id="roster-ov-add-btn" class="btn">Save override</button>
+      </div>
+      <p id="roster-save-status" class="report-status"></p>
+    </div>
+  </section>
 </main>
 
 <div id="memory-detail-modal" class="modal-overlay hidden">
@@ -174,16 +247,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260912b"></script>
-<script src="drive.js?v=20260912b"></script>
-<script src="review.js?v=20260912b"></script>
-<script src="reports.js?v=20260912b"></script>
-<script src="sales.js?v=20260912b"></script>
-<script src="catalog.js?v=20260912b"></script>
-<script src="memory.js?v=20260912b"></script>
-<script src="powerbank.js?v=20260912b"></script>
-<script src="lookup.js?v=20260912b"></script>
-<script src="order.js?v=20260912b"></script>
-<script src="app.js?v=20260912b"></script>
+<script src="config.js?v=20260917a"></script>
+<script src="drive.js?v=20260917a"></script>
+<script src="review.js?v=20260917a"></script>
+<script src="reports.js?v=20260917a"></script>
+<script src="sales.js?v=20260917a"></script>
+<script src="catalog.js?v=20260917a"></script>
+<script src="memory.js?v=20260917a"></script>
+<script src="powerbank.js?v=20260917a"></script>
+<script src="lookup.js?v=20260917a"></script>
+<script src="order.js?v=20260917a"></script>
+<script src="roster.js?v=20260917a"></script>
+<script src="app.js?v=20260917a"></script>
 </body>
 </html>

@@ -15,6 +15,11 @@
   --error: #A23B3B;
   --info: #3B5B77;
   --info-soft: #DCE6ED;
+
+  --mi: #3E6B9C; --mi-soft: #E1E9F1;
+  --ju: #4F8F63; --ju-soft: #E3EFE6;
+  --ag: #8B5A87; --ag-soft: #EFE4EE;
+  --de: #B8802E; --de-soft: #F6EAD6;
 }
 
 * { box-sizing: border-box; }
@@ -594,3 +599,82 @@ main { padding: 20px; }
 .memory-filters input[type="text"] { flex: 1; }
 .memory-filters input[type="number"] { width: 140px; }
 .cost-source-note { color: var(--ink-faint); font-size: 12px; margin: -8px 0 12px; }
+
+/* Roster tab */
+.roster-layout { max-width: 1100px; }
+.roster-cal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 14px;
+}
+.roster-month-nav { display: flex; align-items: center; gap: 10px; }
+.roster-month-label { margin: 0; font-size: 16px; min-width: 160px; text-align: center; }
+.roster-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); }
+.roster-legend-item { display: flex; align-items: center; gap: 5px; }
+.roster-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.roster-dot-mi { background: var(--mi); }
+.roster-dot-ju { background: var(--ju); }
+.roster-dot-ag { background: var(--ag); }
+.roster-dot-de { background: var(--de); }
+.roster-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.roster-swatch-gap { background: var(--error); opacity: 0.25; border: 1px solid var(--error); }
+.roster-swatch-alert { background: var(--warn-soft); border: 1.5px dashed var(--warn); }
+
+.roster-calendar {
+  display: grid; grid-template-columns: repeat(7, minmax(110px, 1fr));
+  gap: 6px; overflow-x: auto; margin-bottom: 22px;
+}
+.roster-dow {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--ink-faint); padding: 2px 4px;
+}
+.roster-cell {
+  background: var(--surface-raised); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px; min-height: 104px; display: flex; flex-direction: column; gap: 3px;
+  cursor: pointer;
+}
+.roster-cell:hover { border-color: var(--accent); }
+.roster-cell.empty { background: none; border: none; cursor: default; }
+.roster-cell.has-gap { border-color: var(--error); box-shadow: 0 0 0 1px var(--error) inset; }
+.roster-cell.has-alert:not(.has-gap) { border-color: var(--warn); }
+.roster-cell-head { display: flex; align-items: center; justify-content: space-between; }
+.roster-daynum { font-weight: 700; font-size: 13px; }
+.roster-alert-dot { color: var(--warn); font-weight: 700; font-size: 12px; }
+.roster-row {
+  font-size: 11px; line-height: 1.25; border-radius: 4px; padding: 1px 4px;
+  display: flex; gap: 4px; align-items: baseline;
+}
+.roster-row .who { font-weight: 700; flex: none; }
+.roster-row .hrs { color: var(--ink-faint); }
+.roster-row.off { background: var(--paper); color: var(--ink-faint); text-decoration: line-through; }
+.roster-row.pending-tag { border: 1.4px dashed var(--warn); background: var(--warn-soft); }
+.roster-row.confirmed-tag { border: 1px solid var(--ok); }
+.roster-row-mi { background: var(--mi-soft); } .roster-row-mi .who { color: var(--mi); }
+.roster-row-ju { background: var(--ju-soft); } .roster-row-ju .who { color: var(--ju); }
+.roster-row-ag { background: var(--ag-soft); } .roster-row-ag .who { color: var(--ag); }
+.roster-row-de { background: var(--de-soft); } .roster-row-de .who { color: var(--de); }
+.roster-gap-note { font-size: 10.5px; color: var(--error); margin-top: auto; }
+
+.roster-alert-card {
+  display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 8px;
+  background: var(--warn-soft); border: 1px solid var(--warn); margin-bottom: 8px; font-size: 13px;
+}
+.roster-alert-card .date { font-weight: 700; white-space: nowrap; }
+.roster-alert-card .text { flex: 1; }
+.roster-alert-card .btn { flex: none; }
+
+.roster-leave-card, .roster-override-card {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px;
+  background: var(--surface-raised); border: 1px solid var(--line); margin-bottom: 6px; font-size: 13px;
+}
+.roster-leave-card .who-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.roster-leave-card .btn, .roster-override-card .btn { margin-left: auto; }
+
+.roster-form {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 18px;
+}
+.roster-form input[type="date"], .roster-form input[type="text"], .roster-form select {
+  font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
+  background: var(--surface-raised);
+}
+.roster-alert-form input[type="text"] { flex: 1; min-width: 200px; }
+.roster-override-form input[type="text"] { width: 130px; }
