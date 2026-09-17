@@ -130,6 +130,7 @@ function switchTab(name) {
   if (name === "lookup") loadLookupTab();
   if (name === "order") Order.render();
   if (name === "roster") Roster.render();
+  if (name === "social") Social.render();
 }
 
 /** Re-renders whichever tab/sub-tab is currently visible - used after a

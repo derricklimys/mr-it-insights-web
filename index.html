@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20260917e">
+<link rel="stylesheet" href="style.css?v=20260917f">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -32,6 +32,7 @@
   <button class="tab-btn" data-tab="lookup">Lookup</button>
   <button class="tab-btn" data-tab="order">Order Memory</button>
   <button class="tab-btn" data-tab="roster">Roster</button>
+  <button class="tab-btn" data-tab="social">Social</button>
 </nav>
 
 <main id="app" class="hidden">
@@ -202,6 +203,44 @@
       <p id="roster-save-status" class="report-status"></p>
     </div>
   </section>
+
+  <section id="tab-social" class="tab-panel">
+    <div class="reports-layout">
+      <p class="report-status">Compose a product post once and queue it out to different platforms at different times. Nothing here posts anywhere yet - each platform needs its own approval first (see the rollout plan); this saves your plan so it's ready the moment each one goes live.</p>
+      <div id="social-status" class="report-status"></div>
+
+      <h2 class="lookup-heading">Compose</h2>
+      <input type="text" id="social-search-input" class="invoice-search" placeholder="Search a product by name or barcode...">
+      <div id="social-search-results" class="social-search-results"></div>
+      <div id="social-selected-preview" class="social-selected-preview"></div>
+      <textarea id="social-caption" class="social-caption" rows="5" placeholder="Pick a product above to fill this in..."></textarea>
+
+      <div class="social-platform-row">
+        <label><input type="checkbox" id="social-platform-facebook"> Facebook</label>
+        <input type="datetime-local" id="social-time-facebook" disabled>
+      </div>
+      <div class="social-platform-row">
+        <label><input type="checkbox" id="social-platform-instagram"> Instagram</label>
+        <input type="datetime-local" id="social-time-instagram" disabled>
+      </div>
+      <div class="social-platform-row">
+        <label><input type="checkbox" id="social-platform-google_business"> Google Business</label>
+        <input type="datetime-local" id="social-time-google_business" disabled>
+      </div>
+      <div class="social-platform-row">
+        <label><input type="checkbox" id="social-platform-tiktok"> TikTok</label>
+        <input type="datetime-local" id="social-time-tiktok" disabled>
+      </div>
+
+      <div class="social-add-row">
+        <button id="social-add-btn" class="btn btn-primary">Add to queue</button>
+        <span id="social-add-status" class="report-status"></span>
+      </div>
+
+      <h2 class="lookup-heading">Queue</h2>
+      <div id="social-queue"></div>
+    </div>
+  </section>
 </main>
 
 <div id="memory-detail-modal" class="modal-overlay hidden">
@@ -252,17 +291,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260917e"></script>
-<script src="drive.js?v=20260917e"></script>
-<script src="review.js?v=20260917e"></script>
-<script src="reports.js?v=20260917e"></script>
-<script src="sales.js?v=20260917e"></script>
-<script src="catalog.js?v=20260917e"></script>
-<script src="memory.js?v=20260917e"></script>
-<script src="powerbank.js?v=20260917e"></script>
-<script src="lookup.js?v=20260917e"></script>
-<script src="order.js?v=20260917e"></script>
-<script src="roster.js?v=20260917e"></script>
-<script src="app.js?v=20260917e"></script>
+<script src="config.js?v=20260917f"></script>
+<script src="drive.js?v=20260917f"></script>
+<script src="review.js?v=20260917f"></script>
+<script src="reports.js?v=20260917f"></script>
+<script src="sales.js?v=20260917f"></script>
+<script src="catalog.js?v=20260917f"></script>
+<script src="memory.js?v=20260917f"></script>
+<script src="powerbank.js?v=20260917f"></script>
+<script src="lookup.js?v=20260917f"></script>
+<script src="order.js?v=20260917f"></script>
+<script src="roster.js?v=20260917f"></script>
+<script src="social.js?v=20260917f"></script>
+<script src="app.js?v=20260917f"></script>
 </body>
 </html>
