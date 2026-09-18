@@ -727,7 +727,7 @@ main { padding: 20px; }
   padding: 10px 12px; background: var(--surface-raised); resize: vertical; margin-bottom: 14px;
 }
 .social-platform-row {
-  display: flex; align-items: center; gap: 12px; padding: 6px 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 6px 0;
 }
 .social-platform-row label { display: flex; align-items: center; gap: 6px; width: 160px; flex: none; }
 .social-platform-row input[type="datetime-local"] {
@@ -735,6 +735,7 @@ main { padding: 20px; }
   background: var(--surface-raised);
 }
 .social-platform-row input[type="datetime-local"]:disabled { background: var(--paper); color: var(--ink-faint); }
+.social-size-hint { flex-basis: 100%; font-size: 12px; color: var(--ink-faint); }
 .social-add-row { display: flex; align-items: center; gap: 10px; margin: 14px 0 26px; }
 
 .social-post-card {
