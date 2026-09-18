@@ -23,10 +23,11 @@ const SOCIAL_PLATFORMS = [
 
 const Social = {
   loaded: false,
-  posts: [], // [{id, name, barcode, price, photoUrl, caption, createdAt, platforms:[{platform, scheduledAt, status}]}]
+  posts: [], // [{id, name, barcode, price, mediaUrl, mediaType, caption, createdAt, platforms:[{platform, scheduledAt, status}]}]
   productPhotos: {},
   searchResults: [],
-  selected: null, // {pid, name, price, barcode, photoUrl}
+  mode: "catalog", // "catalog" | "custom"
+  selected: null, // {pid, name, price, barcode, mediaUrl, mediaType}
 
   async ensureLoaded() {
     if (this.loaded) return;
@@ -54,11 +55,27 @@ const Social = {
   _wireForm() {
     document.getElementById("social-search-input").oninput = (e) => this.search(e.target.value);
     document.getElementById("social-add-btn").onclick = () => this.addToQueue();
+    document.getElementById("social-mode-catalog-btn").onclick = () => this.setMode("catalog");
+    document.getElementById("social-mode-custom-btn").onclick = () => this.setMode("custom");
+    document.getElementById("social-custom-file").onchange = (e) => this.uploadCustomMedia(e.target.files[0]);
+    document.getElementById("social-custom-name").oninput = () => this._syncCustomSelection();
+    document.getElementById("social-custom-price").oninput = () => this._syncCustomSelection();
     for (const p of SOCIAL_PLATFORMS) {
       const cb = document.getElementById(`social-platform-${p.key}`);
       const dt = document.getElementById(`social-time-${p.key}`);
       cb.onchange = () => { dt.disabled = !cb.checked; };
     }
+  },
+
+  setMode(mode) {
+    this.mode = mode;
+    document.getElementById("social-mode-catalog-btn").classList.toggle("active", mode === "catalog");
+    document.getElementById("social-mode-custom-btn").classList.toggle("active", mode === "custom");
+    document.getElementById("social-catalog-panel").hidden = mode !== "catalog";
+    document.getElementById("social-custom-panel").hidden = mode !== "custom";
+    this.selected = null;
+    document.getElementById("social-selected-preview").innerHTML = "";
+    document.getElementById("social-caption").value = "";
   },
 
   photoFor(barcode) {
@@ -98,7 +115,8 @@ const Social = {
       name: detail.name,
       price: detail.price,
       barcode: firstBarcode,
-      photoUrl: firstBarcode ? this.photoFor(firstBarcode) : null,
+      mediaUrl: firstBarcode ? this.photoFor(firstBarcode) : null,
+      mediaType: "image",
     };
     document.getElementById("social-search-input").value = detail.name;
     document.getElementById("social-search-results").innerHTML = "";
@@ -107,13 +125,74 @@ const Social = {
     this._renderSelectedPreview();
   },
 
+  /** Custom-media path: for products not in Aronium at all (or just a photo/
+   * video you want to post without it being tied to a catalog item). Upload
+   * happens immediately on file pick, into its own Drive subfolder kept
+   * separate from product_photos.json - that file is keyed by barcode and
+   * gets wholesale-overwritten on catalog refreshes, so anything without a
+   * barcode has no safe place in it. */
+  async uploadCustomMedia(file) {
+    if (!file) return;
+    const statusEl = document.getElementById("social-custom-status");
+    const isVideo = file.type.startsWith("video/");
+    if (!file.type.startsWith("image/") && !isVideo) {
+      statusEl.textContent = "Please choose an image or video file.";
+      return;
+    }
+    statusEl.textContent = "Uploading...";
+    try {
+      const rootId = await Drive.findChild(CONFIG.ROOT_FOLDER, "root", true);
+      if (!rootId) throw new Error(`Couldn't find "${CONFIG.ROOT_FOLDER}" in your Drive.`);
+      const uploadsFolderId = await Drive.findOrCreateFolder("SocialMediaUploads", rootId);
+      const fileId = await Drive.uploadMediaFile(file, uploadsFolderId);
+      await Drive.makePublic(fileId);
+      const mediaUrl = isVideo
+        ? `https://drive.google.com/uc?export=download&id=${fileId}`
+        : `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
+      this._customMedia = { mediaUrl, mediaType: isVideo ? "video" : "image" };
+      statusEl.textContent = "Uploaded.";
+      this._syncCustomSelection();
+    } catch (e) {
+      statusEl.textContent = "";
+      setStatus("Upload failed: " + e.message, true);
+    }
+  },
+
+  /** Custom mode's "selected" is assembled from three independent inputs
+   * (name, price, uploaded media) rather than one lookup - re-synced on any
+   * of their changes so the preview/caption always reflect the latest. */
+  _syncCustomSelection() {
+    const name = document.getElementById("social-custom-name").value.trim();
+    const priceStr = document.getElementById("social-custom-price").value.trim();
+    const price = priceStr ? Number(priceStr) : null;
+    if (!this._customMedia) return;
+    this.selected = {
+      pid: null,
+      name: name || "(untitled)",
+      price,
+      barcode: null,
+      mediaUrl: this._customMedia.mediaUrl,
+      mediaType: this._customMedia.mediaType,
+    };
+    const priceLine = price != null ? `\n\nPrice: ${money(price)}` : "";
+    document.getElementById("social-caption").value =
+      `${name || ""}${priceLine}\n\n${SOCIAL_DISCLAIMER}`;
+    this._renderSelectedPreview();
+  },
+
   _renderSelectedPreview() {
     const el = document.getElementById("social-selected-preview");
     if (!this.selected) { el.innerHTML = ""; return; }
     const s = this.selected;
+    let mediaHtml = `<p class="empty-state">No photo on file for this product yet.</p>`;
+    if (s.mediaUrl) {
+      mediaHtml = s.mediaType === "video"
+        ? `<video class="product-photo-large" src="${s.mediaUrl}" controls></video>`
+        : `<img class="product-photo-large" src="${s.mediaUrl}" alt="">`;
+    }
     el.innerHTML = `
-      ${s.photoUrl ? `<img class="product-photo-large" src="${s.photoUrl}" alt="">` : `<p class="empty-state">No photo on file for this product yet.</p>`}
-      <p><strong>${escapeHtml(s.name)}</strong> &middot; ${money(s.price)} &middot; ${escapeHtml(s.barcode || "")}</p>
+      ${mediaHtml}
+      <p><strong>${escapeHtml(s.name)}</strong>${s.price != null ? ` &middot; ${money(s.price)}` : ""}${s.barcode ? ` &middot; ${escapeHtml(s.barcode)}` : ""}</p>
     `;
   },
 
@@ -149,7 +228,8 @@ const Social = {
       name: this.selected.name,
       barcode: this.selected.barcode,
       price: this.selected.price,
-      photoUrl: this.selected.photoUrl,
+      mediaUrl: this.selected.mediaUrl,
+      mediaType: this.selected.mediaType,
       caption,
       createdAt: new Date().toISOString(),
       platforms,
@@ -168,7 +248,12 @@ const Social = {
 
   _resetForm() {
     this.selected = null;
+    this._customMedia = null;
     document.getElementById("social-search-input").value = "";
+    document.getElementById("social-custom-name").value = "";
+    document.getElementById("social-custom-price").value = "";
+    document.getElementById("social-custom-file").value = "";
+    document.getElementById("social-custom-status").textContent = "";
     document.getElementById("social-caption").value = "";
     document.getElementById("social-selected-preview").innerHTML = "";
     for (const p of SOCIAL_PLATFORMS) {
@@ -192,9 +277,9 @@ const Social = {
     });
     el.innerHTML = sorted.map((post) => `
       <div class="social-post-card">
-        ${post.photoUrl ? `<img class="social-post-thumb" src="${post.photoUrl}" alt="">` : `<div class="social-post-thumb social-post-thumb-empty"></div>`}
+        ${this._renderQueueThumb(post)}
         <div class="social-post-body">
-          <p class="social-post-name">${escapeHtml(post.name)} &middot; ${money(post.price)}</p>
+          <p class="social-post-name">${escapeHtml(post.name)}${post.price != null ? ` &middot; ${money(post.price)}` : ""}</p>
           <p class="social-post-caption">${escapeHtml(post.caption)}</p>
           <div class="social-post-platforms">
             ${post.platforms.map((p) => `
@@ -214,6 +299,14 @@ const Social = {
     el.querySelectorAll(".social-delete-post").forEach((btn) => {
       btn.addEventListener("click", () => this.deletePost(btn.dataset.id));
     });
+  },
+
+  _renderQueueThumb(post) {
+    if (!post.mediaUrl) return `<div class="social-post-thumb social-post-thumb-empty"></div>`;
+    if (post.mediaType === "video") {
+      return `<div class="social-post-thumb social-post-thumb-video" title="Video"><span>&#9654;</span></div>`;
+    }
+    return `<img class="social-post-thumb" src="${post.mediaUrl}" alt="">`;
   },
 
   _fmtDateTime(isoLocal) {

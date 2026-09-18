@@ -144,6 +144,57 @@ const Drive = {
     }
     return this.createFile(name, parentId, content, "application/json");
   },
+
+  /** Uploads a binary File (an image/video picked via <input type="file">) -
+   * createFile() above only ever built its multipart body from a string,
+   * which mangles binary content; this builds the same multipart shape as a
+   * Blob instead, which handles arbitrary bytes safely. Used by the Social
+   * tab's custom-media upload (product photos already used a Python script
+   * for this, upload_to_drive.py - this is the browser-side equivalent). */
+  async uploadMediaFile(file, parentId, name) {
+    const boundary = "-------mrit314159265358979323846";
+    const metadata = { name: name || file.name, parents: [parentId] };
+    const body = new Blob([
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(metadata)}\r\n`,
+      `--${boundary}\r\nContent-Type: ${file.type || "application/octet-stream"}\r\n\r\n`,
+      file,
+      `\r\n--${boundary}--`,
+    ]);
+    const resp = await this._fetch(
+      `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`,
+      { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body },
+    );
+    return (await resp.json()).id;
+  },
+
+  /** Makes a file open to "anyone with the link" - needed so an external
+   * platform's API can actually fetch the media by URL. Same discipline as
+   * the rest of this project: fine for product/marketing photos and videos,
+   * never used on anything from the private invoice/financial folders. */
+  async makePublic(fileId) {
+    await this._fetch(`${API_BASE}/files/${fileId}/permissions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "reader", type: "anyone" }),
+    });
+  },
+
+  async createFolder(name, parentId) {
+    const resp = await this._fetch(`${API_BASE}/files`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", parents: [parentId] }),
+    });
+    return (await resp.json()).id;
+  },
+
+  /** Finds a subfolder by name, creating it if it doesn't exist yet - the
+   * find-or-create pattern every new Drive subfolder in this app needs. */
+  async findOrCreateFolder(name, parentId) {
+    const existing = await this.findChild(name, parentId, true);
+    if (existing) return existing;
+    return this.createFolder(name, parentId);
+  },
 };
 
 function setStatus(msg, isError = false) {

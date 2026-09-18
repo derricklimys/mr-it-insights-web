@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20260917f">
+<link rel="stylesheet" href="style.css?v=20260918a">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -210,10 +210,28 @@
       <div id="social-status" class="report-status"></div>
 
       <h2 class="lookup-heading">Compose</h2>
-      <input type="text" id="social-search-input" class="invoice-search" placeholder="Search a product by name or barcode...">
-      <div id="social-search-results" class="social-search-results"></div>
+      <div class="social-mode-tabs">
+        <button id="social-mode-catalog-btn" class="social-mode-tab active">From catalog</button>
+        <button id="social-mode-custom-btn" class="social-mode-tab">Upload your own photo/video</button>
+      </div>
+
+      <div id="social-catalog-panel">
+        <input type="text" id="social-search-input" class="invoice-search" placeholder="Search a product by name or barcode...">
+        <div id="social-search-results" class="social-search-results"></div>
+      </div>
+
+      <div id="social-custom-panel" hidden>
+        <p class="report-status">For anything not in Aronium - other products you sell, or just a photo/video you want to post directly. Video is mainly useful for TikTok, which favours video over static photos.</p>
+        <div class="social-custom-fields">
+          <input type="text" id="social-custom-name" placeholder="Product/item name">
+          <input type="number" id="social-custom-price" step="0.01" placeholder="Price (optional)">
+        </div>
+        <input type="file" id="social-custom-file" accept="image/*,video/*">
+        <span id="social-custom-status" class="report-status"></span>
+      </div>
+
       <div id="social-selected-preview" class="social-selected-preview"></div>
-      <textarea id="social-caption" class="social-caption" rows="5" placeholder="Pick a product above to fill this in..."></textarea>
+      <textarea id="social-caption" class="social-caption" rows="5" placeholder="Pick a product, or upload your own photo/video, to fill this in..."></textarea>
 
       <div class="social-platform-row">
         <label><input type="checkbox" id="social-platform-facebook"> Facebook</label>
@@ -291,18 +309,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260917f"></script>
-<script src="drive.js?v=20260917f"></script>
-<script src="review.js?v=20260917f"></script>
-<script src="reports.js?v=20260917f"></script>
-<script src="sales.js?v=20260917f"></script>
-<script src="catalog.js?v=20260917f"></script>
-<script src="memory.js?v=20260917f"></script>
-<script src="powerbank.js?v=20260917f"></script>
-<script src="lookup.js?v=20260917f"></script>
-<script src="order.js?v=20260917f"></script>
-<script src="roster.js?v=20260917f"></script>
-<script src="social.js?v=20260917f"></script>
-<script src="app.js?v=20260917f"></script>
+<script src="config.js?v=20260918a"></script>
+<script src="drive.js?v=20260918a"></script>
+<script src="review.js?v=20260918a"></script>
+<script src="reports.js?v=20260918a"></script>
+<script src="sales.js?v=20260918a"></script>
+<script src="catalog.js?v=20260918a"></script>
+<script src="memory.js?v=20260918a"></script>
+<script src="powerbank.js?v=20260918a"></script>
+<script src="lookup.js?v=20260918a"></script>
+<script src="order.js?v=20260918a"></script>
+<script src="roster.js?v=20260918a"></script>
+<script src="social.js?v=20260918a"></script>
+<script src="app.js?v=20260918a"></script>
 </body>
 </html>
