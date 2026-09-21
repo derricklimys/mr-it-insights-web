@@ -74,6 +74,7 @@ const Social = {
     document.getElementById("social-catalog-panel").hidden = mode !== "catalog";
     document.getElementById("social-custom-panel").hidden = mode !== "custom";
     this.selected = null;
+    this._autoCaption = null;
     document.getElementById("social-selected-preview").innerHTML = "";
     document.getElementById("social-caption").value = "";
   },
@@ -106,7 +107,7 @@ const Social = {
     });
   },
 
-  selectProduct(pid) {
+  async selectProduct(pid) {
     const detail = Lookup.productDetail(pid);
     if (!detail) return;
     const firstBarcode = (detail.barcodes || "").split(",")[0].trim();
@@ -117,12 +118,54 @@ const Social = {
       barcode: firstBarcode,
       mediaUrl: firstBarcode ? this.photoFor(firstBarcode) : null,
       mediaType: "image",
+      productUrl: null,
     };
     document.getElementById("social-search-input").value = detail.name;
     document.getElementById("social-search-results").innerHTML = "";
-    document.getElementById("social-caption").value =
-      `${detail.name}\n\nPrice: ${money(detail.price)}\n\n${SOCIAL_DISCLAIMER}`;
     this._renderSelectedPreview();
+    this._fillCaption();
+
+    if (firstBarcode) {
+      const url = await this._fetchProductUrl(firstBarcode);
+      // Only apply if the user hasn't since picked a different product.
+      if (this.selected && this.selected.barcode === firstBarcode) {
+        this.selected.productUrl = url;
+        this._fillCaption();
+      }
+    }
+  },
+
+  /** Builds the caption template - re-run once the purchase link resolves
+   * (it's fetched from the site after the initial render, see
+   * selectProduct), but never clobbers a caption the user has since
+   * started editing by hand. */
+  _fillCaption() {
+    const s = this.selected;
+    if (!s) return;
+    const el = document.getElementById("social-caption");
+    if (this._autoCaption != null && el.value !== this._autoCaption) return;
+    const lines = [s.name, "", `Price: ${money(s.price)}`];
+    if (s.productUrl) lines.push("", `Buy here: ${s.productUrl}`);
+    lines.push("", SOCIAL_DISCLAIMER);
+    this._autoCaption = lines.join("\n");
+    el.value = this._autoCaption;
+  },
+
+  /** Looks up a product's live purchase link by barcode/SKU via a small
+   * public route on the site itself (wp-json/mrit/v1/product-url) -
+   * WooCommerce's own Store API has the same data but doesn't send CORS
+   * headers, so a direct browser call to it fails silently. Returns null
+   * (caption just omits the link) on any error - a missing link shouldn't
+   * block composing the rest of the post. */
+  async _fetchProductUrl(barcode) {
+    try {
+      const resp = await fetch(`${CONFIG.SITE_URL}/wp-json/mrit/v1/product-url?sku=${encodeURIComponent(barcode)}`);
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      return data.permalink || null;
+    } catch (e) {
+      return null;
+    }
   },
 
   /** Custom-media path: for products not in Aronium at all (or just a photo/
@@ -249,6 +292,7 @@ const Social = {
   _resetForm() {
     this.selected = null;
     this._customMedia = null;
+    this._autoCaption = null;
     document.getElementById("social-search-input").value = "";
     document.getElementById("social-custom-name").value = "";
     document.getElementById("social-custom-price").value = "";
