@@ -91,15 +91,24 @@ const Social = {
       return;
     }
     const byBarcode = /^\d+$/.test(term.trim()) ? Lookup.findByBarcode(term.trim()) : null;
-    const rows = byBarcode ? [byBarcode] : Lookup.searchByName(term.trim(), 15);
+    let rows;
+    if (byBarcode) {
+      const summary = Lookup.salesSummary(byBarcode.pid);
+      rows = [{ ...byBarcode, barcodes: term.trim(), stock: Lookup.stockFor(byBarcode.pid), daysSinceLastSale: summary.daysSinceLastSale }];
+    } else {
+      rows = Lookup.searchByName(term.trim(), 25);
+    }
     if (!rows.length) {
       el.innerHTML = `<p class="empty-state">No matching product.</p>`;
       return;
     }
     el.innerHTML = rows.map((r) => `
       <div class="social-search-row" data-pid="${r.pid}">
-        <span>${escapeHtml(r.name)}</span>
-        <span class="insight-barcode">${escapeHtml(r.barcodes || "")}</span>
+        <div class="social-search-info">
+          <div class="social-search-name">${escapeHtml(r.name)}</div>
+          <div class="insight-barcode">${escapeHtml(r.barcodes || "")}</div>
+          <div class="social-search-meta">Stock: ${r.stock}${r.daysSinceLastSale != null ? ` &middot; Last sold ${r.daysSinceLastSale}d ago` : " &middot; Never sold"}</div>
+        </div>
         <button class="btn social-pick-btn" data-pid="${r.pid}">Use this</button>
       </div>`).join("");
     el.querySelectorAll(".social-pick-btn").forEach((btn) => {

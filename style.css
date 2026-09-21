@@ -717,7 +717,9 @@ main { padding: 20px; }
   display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px;
   background: var(--surface-raised); border: 1px solid var(--line); font-size: 13px;
 }
-.social-search-row span:first-child { flex: 1; }
+.social-search-info { flex: 1; min-width: 0; }
+.social-search-name { font-weight: 500; }
+.social-search-meta { color: var(--ink-faint); font-size: 11px; margin-top: 2px; }
 .social-search-row .btn { flex: none; }
 .social-selected-preview { margin: 14px 0; }
 .social-selected-preview p { margin-top: 8px; font-size: 13px; color: var(--ink-soft); }

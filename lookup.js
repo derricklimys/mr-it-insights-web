@@ -48,15 +48,32 @@ const Lookup = {
     return rows[0] || null;
   },
 
+  /** Matches each whitespace-separated word independently (AND'd) rather
+   * than one literal phrase - "micro sd" now finds "SanDisk ... microSD ..."
+   * even though the product name has no space between "micro" and "SD".
+   * Candidates are capped generously (200) before the per-row stock/sale
+   * lookups run, then sorted most-recently-sold first and trimmed to
+   * `limit` - old, untouched stock no longer buries fresh matches just
+   * because it happens to sort earlier alphabetically. */
   searchByName(term, limit = 30) {
-    return Reports.query(
+    const tokens = term.trim().split(/\s+/).filter(Boolean);
+    if (!tokens.length) return [];
+    const whereClauses = tokens.map(() => "p.Name LIKE ? COLLATE NOCASE").join(" AND ");
+    const params = tokens.map((t) => `%${t}%`);
+    const rows = Reports.query(
       `SELECT p.Id as pid, p.Name as name, pg.Name as groupName,
               (SELECT GROUP_CONCAT(b.Value, ', ') FROM Barcode b WHERE b.ProductId = p.Id) as barcodes
        FROM Product p LEFT JOIN ProductGroup pg ON pg.Id = p.ProductGroupId
-       WHERE p.IsEnabled = 1 AND p.Name LIKE ? COLLATE NOCASE
-       ORDER BY p.Name LIMIT ?`,
-      [`%${term}%`, limit],
+       WHERE p.IsEnabled = 1 AND ${whereClauses}
+       ORDER BY p.Name LIMIT 200`,
+      params,
     );
+    const enriched = rows.map((r) => {
+      const summary = this.salesSummary(r.pid);
+      return { ...r, stock: this.stockFor(r.pid), lastSale: summary.lastSale, daysSinceLastSale: summary.daysSinceLastSale };
+    });
+    enriched.sort((a, b) => (a.daysSinceLastSale ?? Infinity) - (b.daysSinceLastSale ?? Infinity));
+    return enriched.slice(0, limit);
   },
 
   productDetail(productId) {
