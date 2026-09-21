@@ -17,6 +17,7 @@ const Sales = {
   rangePreset: "7",
   customStart: null,
   customEnd: null,
+  monthOffset: 0, // 0 = this month, -1 = previous month, etc. - only used when rangePreset === "month"
 
   async ensureLoaded() {
     if (this.loaded) return;
@@ -106,6 +107,8 @@ const Sales = {
       const today = todayStr();
       return { start: this.customStart || addDays(today, -6), end: this.customEnd || today };
     }
+    if (this.rangePreset === "month") return monthRange(this.monthOffset);
+    if (["q1", "q2", "q3", "q4"].includes(this.rangePreset)) return quarterRange(Number(this.rangePreset[1]));
     return lastNDays(Number(this.rangePreset));
   },
 
@@ -151,7 +154,8 @@ const Sales = {
   },
 
   _presetHtml(start, end) {
-    const presets = [["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["custom", "Custom"]];
+    const presets = [["7", "7 days"], ["30", "30 days"], ["90", "90 days"],
+      ["q1", "Q1"], ["q2", "Q2"], ["q3", "Q3"], ["q4", "Q4"], ["custom", "Custom"]];
     const chips = presets
       .map(([val, label]) => `<button class="chip-btn ${this.rangePreset === val ? "active" : ""}" data-preset="${val}">${label}</button>`)
       .join("");
@@ -162,12 +166,30 @@ const Sales = {
            <input type="date" data-custom-end value="${this.customEnd || end}" max="${todayStr()}">
          </div>`
       : "";
-    return `<div class="chip-row sales-preset-row">${chips}</div>${customInputs}<p class="report-status">${start} to ${end}</p>`;
+    const monthLabel = monthRange(this.monthOffset).label;
+    const monthNav = `
+      <div class="chip-row sales-month-nav">
+        <button class="btn" data-month-nav="prev">&laquo; Previous Month</button>
+        <button class="chip-btn ${this.rangePreset === "month" && this.monthOffset === 0 ? "active" : ""}" data-month-nav="this">This Month</button>
+        <button class="btn" data-month-nav="next" ${this.monthOffset >= 0 ? "disabled" : ""}>Next Month &raquo;</button>
+        ${this.rangePreset === "month" ? `<span class="sales-month-label">${monthLabel}</span>` : ""}
+      </div>`;
+    return `<div class="chip-row sales-preset-row">${chips}</div>${monthNav}${customInputs}<p class="report-status">${start} to ${end}</p>`;
   },
 
   _bindPreset(el, onChange) {
     el.querySelectorAll("[data-preset]").forEach((btn) => {
       btn.addEventListener("click", () => { this.rangePreset = btn.dataset.preset; onChange(); });
+    });
+    el.querySelectorAll("[data-month-nav]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const action = btn.dataset.monthNav;
+        if (action === "prev") this.monthOffset -= 1;
+        else if (action === "next") this.monthOffset = Math.min(0, this.monthOffset + 1);
+        else this.monthOffset = 0;
+        this.rangePreset = "month";
+        onChange();
+      });
     });
     const startInput = el.querySelector("[data-custom-start]");
     const endInput = el.querySelector("[data-custom-end]");
@@ -282,6 +304,31 @@ function addDays(dateStr, delta) {
 function lastNDays(n) {
   const end = todayStr();
   return { start: addDays(end, -(n - 1)), end };
+}
+/** offset 0 = current calendar month, -1 = previous, etc. End is capped at
+ * today for the current month (still in progress) - past months use their
+ * real last day since they're already complete. */
+function monthRange(offset) {
+  const today = new Date();
+  const first = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+  const last = new Date(today.getFullYear(), today.getMonth() + offset + 1, 0);
+  const end = offset === 0 ? todayStr() : localDateStr(last);
+  return {
+    start: localDateStr(first),
+    end,
+    label: first.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+  };
+}
+/** q is 1-4, always for the current calendar year - end is capped at today
+ * for whichever quarter today falls in, same reasoning as monthRange. */
+function quarterRange(q) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const first = new Date(year, (q - 1) * 3, 1);
+  const last = new Date(year, q * 3, 0);
+  const todayInThisQuarter = Math.floor(today.getMonth() / 3) + 1 === q;
+  const end = todayInThisQuarter ? todayStr() : localDateStr(last);
+  return { start: localDateStr(first), end };
 }
 function formatDateLong(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
