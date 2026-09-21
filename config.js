@@ -3,6 +3,7 @@
 // SETUP.md. This value is public by design for browser OAuth apps; it is
 // not a secret.
 const CONFIG = {
+  SITE_URL: "https://mrit.com.sg",
   CLIENT_ID: "985263849983-h29lfi11tpadjml0l5f5slba5bh4go72.apps.googleusercontent.com",
   SCOPES: [
     "https://www.googleapis.com/auth/drive.file",
