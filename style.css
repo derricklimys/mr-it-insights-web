@@ -393,6 +393,28 @@ main { padding: 20px; }
 .memory-table tbody tr { cursor: pointer; }
 .memory-table tbody tr:hover { background: var(--surface); }
 
+.memory-group {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.memory-group summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  list-style: none;
+}
+.memory-group summary::-webkit-details-marker { display: none; }
+.memory-group summary::before { content: "▸"; color: var(--ink-faint); margin-right: 2px; }
+.memory-group[open] summary::before { content: "▾"; }
+.memory-group-label { font-weight: 600; }
+.memory-group-count { color: var(--ink-faint); font-size: 12px; }
+.memory-group .memory-table { margin: 0; border-radius: 0; border-width: 1px 0 0; }
+
 .insights-lookup { margin-bottom: 16px; }
 .insights-lookup input {
   font: inherit;

@@ -5,6 +5,48 @@
 // cost rose) - plus a per-product history chart and a "new in the
 // pricelist but never stocked" list.
 
+// The product list is grouped by SanDisk PN family (from the pricelist,
+// already loaded as priceHistory below) rather than by parsing Aronium's
+// own product name - those were typed by different staff over time with
+// inconsistent conventions (typos, word order, embedded speed ratings) and
+// fragment badly under any name-based grouping heuristic; the PN is the
+// reliable signal, same rule create_variant_families.py already follows.
+// A product with no PN match (discontinued, no longer in the current
+// pricelist) gets its own single-item group keyed by its own barcode
+// instead of a guessed name-based bucket.
+const CAPACITY_FROM_PN_RE = /^0*(\d+)([GT])/;
+const NAME_CAPACITY_RE = /(\d+(?:\.\d+)?)\s*(GB|TB)\b(?!\s*\/)/i;
+const COLOR_WORDS = ["Tropical Blue", "Champagne Gold", "Midnight Black", "Rose Gold", "Sky Blue", "Navy Blue"];
+
+function familyPrefix(pn) {
+  return pn.slice(0, 6);
+}
+
+function capacityFromPn(pn) {
+  const parts = pn.split("-");
+  if (parts.length < 2) return null;
+  const m = CAPACITY_FROM_PN_RE.exec(parts[1]);
+  if (!m) return null;
+  return `${m[1]}${m[2] === "T" ? "TB" : "GB"}`;
+}
+
+function capacityFromName(name) {
+  const m = NAME_CAPACITY_RE.exec(name || "");
+  return m ? `${m[1]}${m[2].toUpperCase()}` : null;
+}
+
+function capacitySortKey(capacity) {
+  const m = /([\d.]+)(GB|TB)/.exec(capacity || "");
+  if (!m) return Infinity;
+  const num = parseFloat(m[1]);
+  return m[2] === "TB" ? num * 1024 : num;
+}
+
+function colorFromName(name) {
+  const lower = (name || "").toLowerCase();
+  return COLOR_WORDS.find((w) => lower.includes(w.toLowerCase())) || null;
+}
+
 const Memory = {
   loaded: false,
   products: [],
@@ -47,17 +89,22 @@ const Memory = {
     // day or more, and this keeps every "recent" figure on the same clock.
     const latestDataRow = Reports.query("SELECT MAX(Date) as d FROM Document")[0];
     const latestDataDate = latestDataRow ? latestDataRow.d : null;
-    const last30Rows = latestDataDate
-      ? Reports.query(
-          `SELECT di.ProductId as pid, SUM(di.Quantity) as qty, SUM(di.Total) as revenue
-           FROM DocumentItem di JOIN Document d ON d.Id = di.DocumentId
-           WHERE d.DocumentTypeId = 2 AND d.Date >= date(?, '-30 days')
-           GROUP BY di.ProductId`,
-          [latestDataDate],
-        )
-      : [];
-    const last30ByProduct = {};
-    for (const r of last30Rows) last30ByProduct[r.pid] = { qty: r.qty || 0, revenue: r.revenue || 0 };
+    const salesWindow = (days) => {
+      if (!latestDataDate) return {};
+      const rows = Reports.query(
+        `SELECT di.ProductId as pid, SUM(di.Quantity) as qty, SUM(di.Total) as revenue
+         FROM DocumentItem di JOIN Document d ON d.Id = di.DocumentId
+         WHERE d.DocumentTypeId = 2 AND d.Date >= date(?, '-${days} days')
+         GROUP BY di.ProductId`,
+        [latestDataDate],
+      );
+      const byProduct = {};
+      for (const r of rows) byProduct[r.pid] = { qty: r.qty || 0, revenue: r.revenue || 0 };
+      return byProduct;
+    };
+    const last30ByProduct = salesWindow(30);
+    const last60ByProduct = salesWindow(60);
+    const last90ByProduct = salesWindow(90);
 
     const priceByUpc = {};
     for (const [pn, entries] of Object.entries(priceHistory)) {
@@ -96,6 +143,8 @@ const Memory = {
       const invoiceCosts = invoiceCostsByProduct[r.Id] || [];
       const combinedStock = aroniumStock + reserveQty;
       const last30 = last30ByProduct[r.Id] || { qty: 0, revenue: 0 };
+      const last60 = last60ByProduct[r.Id] || { qty: 0, revenue: 0 };
+      const last90 = last90ByProduct[r.Id] || { qty: 0, revenue: 0 };
       const daysOfStockLeft = last30.qty > 0 ? combinedStock / (last30.qty / 30) : null;
 
       const signal = Catalog.computeSignal({
@@ -106,18 +155,26 @@ const Memory = {
         combinedStock,
       });
 
+      const pn = priceMatch ? priceMatch.pn : null;
+      const capacity = (pn && capacityFromPn(pn)) || capacityFromName(r.Name);
+      const groupKey = pn ? `pn:${familyPrefix(pn)}` : `upc:${barcodes[0] || r.Id}`;
+
       return {
         productId: r.Id, name: r.Name, currentPrice: r.Price, barcodes,
         photoThumbUrl: photoEntry ? photoEntry.thumb_url : null,
         photoUrl: photoEntry ? photoEntry.url : null,
-        priceHistoryPn: priceMatch ? priceMatch.pn : null,
+        priceHistoryPn: pn,
         priceHistory: priceMatch ? priceMatch.entries : [],
         invoiceCosts,
         monthly, aroniumStock, reserveQty, combinedStock,
         reserveUpdatedAt: reserveEntry ? reserveEntry.updated_at : null,
-        last30Qty: last30.qty, last30Revenue: last30.revenue, daysOfStockLeft,
+        last30Qty: last30.qty, last30Revenue: last30.revenue,
+        last60Qty: last60.qty, last60Revenue: last60.revenue,
+        last90Qty: last90.qty, last90Revenue: last90.revenue,
+        daysOfStockLeft,
         signal: signal.type, signalReason: signal.reason, marginPct: signal.marginPct,
         costSource: signal.costSource, costRising: signal.costRising,
+        groupKey, capacity, color: colorFromName(r.Name),
       };
     });
     this.products.sort((a, b) => Catalog.signalRank(b.signal) - Catalog.signalRank(a.signal));
@@ -149,24 +206,57 @@ const Memory = {
     return JSON.parse(await Drive.downloadText(fileId));
   },
 
+  /** Groups products by PN family (or, lacking a PN, by their own barcode -
+   * see the grouping helpers up top for why) - one collapsible section per
+   * group, capacity then color within it. Groups containing any product
+   * that needs attention (stock-up/reprice) open by default so those
+   * signals stay visible without expanding everything. */
   renderList() {
     const el = document.getElementById("memory-list");
     if (!this.products.length) {
       el.innerHTML = `<p class="empty-state">No Memory-group products found in Aronium.</p>`;
       return;
     }
-    el.innerHTML = Catalog.tableHtmlWithRowIds(
-      ["", "Photo", "Product", "Barcode", "Combined Stock", "Margin", "Signal"],
-      this.products.map((p) => [
-        p.productId,
-        p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
-        escapeHtml(p.name),
-        escapeHtml(p.barcodes[0] || "—"),
-        `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
-        p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—",
-        Catalog.signalBadge(p.signal),
-      ]),
-    );
+    const groups = new Map();
+    for (const p of this.products) {
+      if (!groups.has(p.groupKey)) groups.set(p.groupKey, []);
+      groups.get(p.groupKey).push(p);
+    }
+    const groupList = [...groups.values()].map((items) => {
+      items.sort((a, b) => capacitySortKey(a.capacity) - capacitySortKey(b.capacity) || (a.color || "").localeCompare(b.color || ""));
+      const label = items.length > 1
+        ? items.slice().sort((a, b) => a.name.length - b.name.length)[0].name
+            .replace(NAME_CAPACITY_RE, "").replace(/\s{2,}/g, " ").trim()
+        : items[0].name;
+      const worstRank = Math.max(...items.map((p) => Catalog.signalRank(p.signal)));
+      return { items, label, worstRank };
+    });
+    groupList.sort((a, b) => b.worstRank - a.worstRank || a.label.localeCompare(b.label));
+
+    el.innerHTML = groupList.map((g) => `
+      <details class="memory-group" ${g.worstRank > 0 ? "open" : ""}>
+        <summary>
+          <span class="memory-group-label">${escapeHtml(g.label)}</span>
+          <span class="memory-group-count">${g.items.length} item${g.items.length > 1 ? "s" : ""}</span>
+        </summary>
+        ${Catalog.tableHtmlWithRowIds(
+          ["", "Photo", "Product", "Capacity", "Color", "Barcode", "Combined Stock", "30d Sold", "60d Sold", "90d Sold", "Margin", "Signal"],
+          g.items.map((p) => [
+            p.productId,
+            p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
+            escapeHtml(p.name),
+            escapeHtml(p.capacity || "—"),
+            escapeHtml(p.color || "—"),
+            escapeHtml(p.barcodes[0] || "—"),
+            `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
+            p.last30Qty, p.last60Qty, p.last90Qty,
+            p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—",
+            Catalog.signalBadge(p.signal),
+          ]),
+        )}
+      </details>
+    `).join("");
+
     el.querySelectorAll("tr[data-id]").forEach((row) => {
       row.addEventListener("click", () => this.select(Number(row.dataset.id)));
     });
@@ -199,6 +289,8 @@ const Memory = {
         <div><span class="stat-label">Shop floor stock</span><span class="stat-value">${p.aroniumStock}</span></div>
         <div><span class="stat-label">Reserve stock</span><span class="stat-value">${p.reserveQty}</span></div>
         <div><span class="stat-label">Sold, last 30 days</span><span class="stat-value">${p.last30Qty}</span></div>
+        <div><span class="stat-label">Sold, last 60 days</span><span class="stat-value">${p.last60Qty}</span></div>
+        <div><span class="stat-label">Sold, last 90 days</span><span class="stat-value">${p.last90Qty}</span></div>
         <div><span class="stat-label">Days of stock left</span><span class="stat-value">${p.daysOfStockLeft != null ? Math.round(p.daysOfStockLeft) : "—"}</span></div>
         <div><span class="stat-label">Current price</span><span class="stat-value">${money(p.currentPrice)}</span></div>
         <div><span class="stat-label">Margin</span><span class="stat-value">${p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—"}</span></div>
