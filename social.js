@@ -21,6 +21,40 @@ const SOCIAL_PLATFORMS = [
   { key: "tiktok", label: "TikTok" },
 ];
 
+// Confirmed with Derrick 2026-09-22 - kept short (Instagram doesn't reward
+// stuffing 30 tags on it) and grounded in the actual Aronium group/brand,
+// not generic filler.
+const HASHTAG_STANDING = ["#MrIT", "#MarinaSquare", "#SGShopping"];
+const HASHTAG_BY_GROUP = {
+  Memory: ["#MicroSD", "#MemoryCard", "#SDCard"],
+  Powerbank: ["#Powerbank", "#PortableCharger"],
+  Calculators: ["#Calculator", "#ScientificCalculator"],
+  Y2K: ["#Charger", "#FastCharging"],
+  Pentel: ["#Pentel", "#Stationery"],
+  PILOT: ["#Pilot", "#Stationery"],
+};
+const HASHTAG_BY_BRAND_KEYWORD = [
+  ["sandisk", "#SanDisk"],
+  ["verbatim", "#Verbatim"],
+  ["casio", "#Casio"],
+  ["texas ins", "#TexasInstruments"],
+  ["sharp", "#Sharp"],
+  ["pentel", "#Pentel"],
+  ["pilot", "#Pilot"],
+];
+
+/** Standing shop tags + the product's category tags (by Aronium group) +
+ * a brand tag sniffed from the name - deduped, in that order. groupName may
+ * be null (custom-media posts aren't tied to a catalog product). */
+function buildHashtags(name, groupName) {
+  const tags = [...HASHTAG_STANDING, ...(HASHTAG_BY_GROUP[groupName] || [])];
+  const lower = (name || "").toLowerCase();
+  for (const [keyword, tag] of HASHTAG_BY_BRAND_KEYWORD) {
+    if (lower.includes(keyword)) tags.push(tag);
+  }
+  return [...new Set(tags)];
+}
+
 const Social = {
   loaded: false,
   posts: [], // [{id, name, barcode, price, mediaUrl, mediaType, caption, createdAt, platforms:[{platform, scheduledAt, status}]}]
@@ -125,6 +159,7 @@ const Social = {
       name: detail.name,
       price: detail.price,
       barcode: firstBarcode,
+      groupName: detail.groupName,
       mediaUrl: firstBarcode ? this.photoFor(firstBarcode) : null,
       mediaType: "image",
       productUrl: null,
@@ -156,6 +191,8 @@ const Social = {
     const lines = [s.name, "", `Price: ${money(s.price)}`];
     if (s.productUrl) lines.push("", `Buy here: ${s.productUrl}`);
     lines.push("", SOCIAL_DISCLAIMER);
+    const hashtags = buildHashtags(s.name, s.groupName);
+    if (hashtags.length) lines.push("", hashtags.join(" "));
     this._autoCaption = lines.join("\n");
     el.value = this._autoCaption;
   },
@@ -223,12 +260,15 @@ const Social = {
       name: name || "(untitled)",
       price,
       barcode: null,
+      groupName: null,
       mediaUrl: this._customMedia.mediaUrl,
       mediaType: this._customMedia.mediaType,
     };
     const priceLine = price != null ? `\n\nPrice: ${money(price)}` : "";
+    const hashtags = buildHashtags(name, null);
+    const hashtagLine = hashtags.length ? `\n\n${hashtags.join(" ")}` : "";
     document.getElementById("social-caption").value =
-      `${name || ""}${priceLine}\n\n${SOCIAL_DISCLAIMER}`;
+      `${name || ""}${priceLine}\n\n${SOCIAL_DISCLAIMER}${hashtagLine}`;
     this._renderSelectedPreview();
   },
 
