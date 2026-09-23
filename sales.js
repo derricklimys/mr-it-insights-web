@@ -6,6 +6,29 @@
 // the web "Reports" tab is a different thing (margin/cost-trend from
 // invoices, not day-to-day sales).
 
+// Derrick's local suppliers - shown first in the group dropdown, sorted
+// alphabetically among themselves, ahead of everything else (which stays
+// alphabetical too). Matched case-insensitively/trimmed since Aronium's
+// own group names are inconsistently cased ("PILOT" vs "Pentel") and a
+// couple carry a stray trailing space ("Ovol "). Convergent has no group
+// of its own yet - its stock still sits under the generic MEMORY/POWERBANK
+// groups - and Joever/JGS/Micro Cell are the same story under
+// CALCULATORS/BATTERIES, per Derrick's own note; add them here once (or if)
+// those get split into their own supplier groups.
+const LOCAL_SUPPLIER_GROUPS = ["Azone", "Hoyo", "Hoyo Marketing", "Ovol", "Pentel", "Pilot", "Reflect Trading", "Y2K"];
+// Next after the local suppliers - Convergent's (Memory/Powerbank) and
+// Batteries' own high-volume groups, ahead of the long tail of everything
+// else.
+const SECONDARY_GROUPS = ["Batteries", "Memory", "Powerbank"];
+
+function groupSortWeight(name) {
+  const trimmed = (name || "").trim().toLowerCase();
+  const tier = LOCAL_SUPPLIER_GROUPS.some((s) => s.toLowerCase() === trimmed) ? 0
+    : SECONDARY_GROUPS.some((s) => s.toLowerCase() === trimmed) ? 1
+    : 2;
+  return [tier, trimmed];
+}
+
 const Sales = {
   loaded: false,
   groups: [],
@@ -22,7 +45,10 @@ const Sales = {
   async ensureLoaded() {
     if (this.loaded) return;
     await Reports.ensureLoaded();
-    this.groups = Reports.query("SELECT Id, Name FROM ProductGroup ORDER BY Name");
+    this.groups = Reports.query("SELECT Id, Name FROM ProductGroup").sort((a, b) => {
+      const aw = groupSortWeight(a.Name), bw = groupSortWeight(b.Name);
+      return aw[0] - bw[0] || aw[1].localeCompare(bw[1]);
+    });
     const row = Reports.query("SELECT date(MAX(Date)) as d FROM Document")[0];
     this.lastDataDate = row ? row.d : null;
     this.loaded = true;
