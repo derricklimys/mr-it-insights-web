@@ -7,6 +7,15 @@
 
 const ORDER_TRACKED_FILE = "order_memory_tracked.json";
 const ORDER_DRAFT_FILE = "order_memory_draft.json";
+const ORDER_HISTORY_FILE = "order_memory_history.json";
+const ORDER_STATUS_LABELS = { pending: "Pending", ok: "OK", no_stock: "No Stock", lesser_stock: "Lesser Stock" };
+
+function orderStatusClass(status) {
+  return status === "ok" ? "order-status-ok"
+    : status === "no_stock" ? "order-status-no-stock"
+    : status === "lesser_stock" ? "order-status-lesser"
+    : "order-status-pending";
+}
 
 const Order = {
   loaded: false,
@@ -14,6 +23,8 @@ const Order = {
   pricelistDate: null,
   trackedBarcodes: null, // Set<barcode>
   draftQty: {}, // {barcode: qty}
+  orderHistory: [], // [{id, placedDate, lines: [{barcode, pn, name, qtyOrdered, dealerPrice, status}]}]
+  lastIssueByBarcode: null, // Map<barcode, {status, placedDate}> - most recent no_stock/lesser_stock flag
   rows: [],
 
   async ensureLoaded() {
@@ -28,23 +39,32 @@ const Order = {
 
     this.trackedBarcodes = await this._loadTrackedList();
     this.draftQty = (await this._loadDriveJson(ORDER_DRAFT_FILE)) || {};
+    const savedHistory = await this._loadDriveJson(ORDER_HISTORY_FILE);
+    this.orderHistory = (savedHistory && Array.isArray(savedHistory.orders)) ? savedHistory.orders : [];
+    this._buildLastIssueMap();
 
     this._buildRows();
     this.loaded = true;
   },
 
-  async render() {
-    const el = document.getElementById("order-status");
-    el.textContent = "Loading stock, reserve, and pricelist data…";
-    try {
-      await this.ensureLoaded();
-      el.textContent = "";
-      this.renderList();
-      this.renderAddCandidates();
-    } catch (e) {
-      el.textContent = "";
-      setStatus(e.message, true);
+  /** Surfaces "this came back short or empty last time" on the CURRENT
+   * list, so it's visible while deciding this round's quantities - not
+   * just buried in the history. Only no_stock/lesser_stock count as an
+   * issue worth flagging; "ok"/"pending" lines say nothing here. Looks at
+   * every past order (not just the latest one) and keeps whichever flagged
+   * occurrence is most recent per barcode. */
+  _buildLastIssueMap() {
+    const map = new Map();
+    for (const order of this.orderHistory) {
+      for (const line of order.lines || []) {
+        if (line.status !== "no_stock" && line.status !== "lesser_stock") continue;
+        const existing = map.get(line.barcode);
+        if (!existing || order.placedDate > existing.placedDate) {
+          map.set(line.barcode, { status: line.status, placedDate: order.placedDate });
+        }
+      }
     }
+    this.lastIssueByBarcode = map;
   },
 
   /** Only entries whose *last* history date matches the most recent pricelist
@@ -174,6 +194,7 @@ const Order = {
         capacity: (priced && capacityFromPn(priced.pn)) || capacityFromName(name),
         color: colorFromName(name),
         groupKey: priced ? `pn:${familyPrefix(priced.pn)}` : `upc:${barcode}`,
+        lastIssue: this.lastIssueByBarcode.get(barcode) || null,
       });
     }
     rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -217,12 +238,15 @@ const Order = {
     });
     groupList.sort((a, b) => a.label.localeCompare(b.label));
 
+    const today = new Date().toISOString().slice(0, 10);
     el.innerHTML = `
       <div class="sales-summary">
         <span>${this.rows.length} products tracked${this.pricelistDate ? ` &middot; pricelist as of ${escapeHtml(this.pricelistDate)}` : ""}</span>
-        <div>
-          <button id="order-save-btn" class="btn btn-primary">Save Order</button>
+        <div class="order-actions">
+          <button id="order-save-btn" class="btn">Save Order</button>
           <button id="order-export-btn" class="btn">Export to Excel</button>
+          <input type="date" id="order-place-date" value="${today}">
+          <button id="order-place-btn" class="btn btn-primary">Place Order</button>
         </div>
       </div>
       <p class="order-total-line">Order total: <strong id="order-total-value">${money(this._orderTotal())}</strong></p>
@@ -246,6 +270,7 @@ const Order = {
                       ${escapeHtml(r.name)}
                       ${r.pn ? `<div class="insight-barcode">${escapeHtml(r.pn)}</div>` : ""}
                       ${!r.inCurrentPricelist ? `<div class="insight-barcode order-dropped-note">Not in current pricelist</div>` : ""}
+                      ${r.lastIssue ? `<div class="insight-barcode order-dropped-note">⚠ ${escapeHtml(ORDER_STATUS_LABELS[r.lastIssue.status])} on ${escapeHtml(r.lastIssue.placedDate)} order</div>` : ""}
                     </td>
                     <td>${escapeHtml(r.capacity || "—")}</td>
                     <td>${escapeHtml(r.color || "—")}</td>
@@ -293,6 +318,7 @@ const Order = {
     });
     document.getElementById("order-save-btn").addEventListener("click", () => this.saveDraft());
     document.getElementById("order-export-btn").addEventListener("click", () => this.exportXlsx());
+    document.getElementById("order-place-btn").addEventListener("click", () => this.placeOrder());
   },
 
   renderAddCandidates() {
@@ -326,6 +352,90 @@ const Order = {
     });
   },
 
+  /** Newest first. Groups open automatically when they still have a
+   * "pending" line (nothing reconciled yet) or any no_stock/lesser_stock -
+   * a fully-OK past order collapses out of the way. */
+  renderHistoryList() {
+    const el = document.getElementById("order-history-list");
+    if (!this.orderHistory.length) {
+      el.innerHTML = `<p class="empty-state">No orders placed yet - use "Place Order" on the Current Order tab once you've sent one to Convergent.</p>`;
+      return;
+    }
+    const sorted = [...this.orderHistory].sort((a, b) => b.placedDate.localeCompare(a.placedDate) || b.id.localeCompare(a.id));
+
+    el.innerHTML = sorted.map((order) => {
+      const counts = { pending: 0, ok: 0, no_stock: 0, lesser_stock: 0 };
+      for (const line of order.lines) counts[line.status] = (counts[line.status] || 0) + 1;
+      const needsAttention = counts.pending > 0 || counts.no_stock > 0 || counts.lesser_stock > 0;
+      const total = order.lines.reduce((sum, l) => sum + (l.dealerPrice != null ? l.dealerPrice * l.qtyOrdered : 0), 0);
+      const summary = Object.entries(counts).filter(([, n]) => n > 0)
+        .map(([status, n]) => `<span class="${orderStatusClass(status)}">${n} ${escapeHtml(ORDER_STATUS_LABELS[status])}</span>`).join(" &middot; ");
+
+      return `
+        <details class="memory-group" data-order-id="${order.id}" ${needsAttention ? "open" : ""}>
+          <summary>
+            <span class="memory-group-label">${escapeHtml(order.placedDate)}</span>
+            <span class="memory-group-count">${order.lines.length} item${order.lines.length > 1 ? "s" : ""} &middot; ${money(total)} &middot; ${summary}</span>
+          </summary>
+          <div class="sales-table-wrap">
+            <table class="report-table order-table">
+              <thead><tr><th>Product</th><th>Barcode</th><th>Qty Ordered</th><th>Dealer S$</th><th>Status</th></tr></thead>
+              <tbody>
+                ${order.lines.map((l, i) => `
+                  <tr>
+                    <td>${escapeHtml(l.name)}${l.pn ? `<div class="insight-barcode">${escapeHtml(l.pn)}</div>` : ""}</td>
+                    <td>${escapeHtml(l.barcode)}</td>
+                    <td>${l.qtyOrdered}</td>
+                    <td>${l.dealerPrice != null ? money(l.dealerPrice) : "—"}</td>
+                    <td>
+                      <select class="order-history-status ${orderStatusClass(l.status)}" data-order-id="${order.id}" data-line-index="${i}">
+                        ${Object.entries(ORDER_STATUS_LABELS).map(([v, label]) => `<option value="${v}" ${l.status === v ? "selected" : ""}>${label}</option>`).join("")}
+                      </select>
+                    </td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div class="order-history-save-row">
+            <button class="btn order-history-save-btn" data-order-id="${order.id}">Save</button>
+            <span class="report-status" data-order-status="${order.id}"></span>
+          </div>
+        </details>`;
+    }).join("");
+
+    el.querySelectorAll(".order-history-status").forEach((select) => {
+      select.addEventListener("change", (e) => {
+        select.className = `order-history-status ${orderStatusClass(e.target.value)}`;
+      });
+    });
+    el.querySelectorAll(".order-history-save-btn").forEach((btn) => {
+      btn.addEventListener("click", () => this.saveHistoryOrder(btn.dataset.orderId));
+    });
+  },
+
+  /** Reads every status <select> for one order straight from the DOM
+   * (simpler and less error-prone than keeping a parallel edit-buffer in
+   * sync) and writes it back into that order's lines before saving. */
+  async saveHistoryOrder(orderId) {
+    const statusEl = document.querySelector(`[data-order-status="${CSS.escape(orderId)}"]`);
+    const order = this.orderHistory.find((o) => o.id === orderId);
+    if (!order) return;
+    document.querySelectorAll(`.order-history-status[data-order-id="${CSS.escape(orderId)}"]`).forEach((select) => {
+      const i = Number(select.dataset.lineIndex);
+      if (order.lines[i]) order.lines[i].status = select.value;
+    });
+    statusEl.textContent = "Saving…";
+    try {
+      await this._saveDriveJson(ORDER_HISTORY_FILE, { orders: this.orderHistory });
+      this._buildLastIssueMap();
+      statusEl.textContent = "Saved.";
+      this.renderHistoryList();
+    } catch (e) {
+      statusEl.textContent = "";
+      setStatus("Save failed: " + e.message, true);
+    }
+  },
+
   async removeBarcode(barcode) {
     this.trackedBarcodes.delete(barcode);
     delete this.draftQty[barcode];
@@ -352,6 +462,52 @@ const Order = {
     } catch (e) {
       statusEl.textContent = "";
       setStatus("Save failed: " + e.message, true);
+    }
+  },
+
+  /** Distinct from Save Order: this is "I actually sent this to Convergent",
+   * not just "keep my in-progress quantities." Snapshots every line with a
+   * quantity into a new order_memory_history.json entry (status "pending"
+   * until reconciled from the History tab), then clears the draft
+   * quantities so the next visit starts a fresh order - the tracked list
+   * itself is untouched, since he's still tracking the same products. */
+  async placeOrder() {
+    const statusEl = document.getElementById("order-save-status");
+    const orderRows = this.rows.filter((r) => (r.qty || 0) > 0);
+    if (!orderRows.length) {
+      statusEl.textContent = "";
+      setStatus("No quantities entered yet - nothing to place.", true);
+      return;
+    }
+    const dateInput = document.getElementById("order-place-date");
+    const placedDate = dateInput.value || new Date().toISOString().slice(0, 10);
+
+    statusEl.textContent = "Placing order…";
+    try {
+      const order = {
+        id: `order-${Date.now()}`,
+        placedDate,
+        lines: orderRows.map((r) => ({
+          barcode: r.barcode, pn: r.pn, name: r.name,
+          qtyOrdered: r.qty, dealerPrice: r.dealerPrice, status: "pending",
+        })),
+      };
+      this.orderHistory.push(order);
+      await this._saveDriveJson(ORDER_HISTORY_FILE, { orders: this.orderHistory });
+
+      this.draftQty = {};
+      await this._saveDriveJson(ORDER_DRAFT_FILE, this.draftQty);
+
+      this._buildLastIssueMap();
+      this._buildRows();
+      this.renderList();
+      // renderList() just rebuilt #order-save-status from scratch (empty) -
+      // grab the fresh element rather than the one captured before render.
+      document.getElementById("order-save-status").textContent =
+        `Order placed on ${placedDate} (${orderRows.length} products). Quantities cleared for your next order - see it under Order History.`;
+    } catch (e) {
+      statusEl.textContent = "";
+      setStatus("Couldn't place order: " + e.message, true);
     }
   },
 

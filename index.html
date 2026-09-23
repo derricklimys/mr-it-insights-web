@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20260923e">
+<link rel="stylesheet" href="style.css?v=20260923f">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -114,16 +114,26 @@
 
   <section id="tab-order" class="tab-panel">
     <div class="reports-layout">
-      <p class="report-status">Combined shop + reserve stock, the current Convergent pricelist, and your recent sales - cross-referenced so you don't have to check each by hand. Starts with what's flagged "Stock up" on the Memory tab - add anything else below. Type quantities, Save Order to keep your progress, Export to Excel when ready to send.</p>
-      <div id="order-status" class="report-status"></div>
-      <div class="order-add-barcode">
-        <input type="text" id="order-add-barcode-input" placeholder="Add by barcode…">
-        <button id="order-add-barcode-btn" class="btn">Add</button>
-        <span id="order-add-barcode-status" class="report-status"></span>
+      <nav class="report-tabs">
+        <button class="order-tab-btn active" data-ordertab="current">Current Order</button>
+        <button class="order-tab-btn" data-ordertab="history">Order History</button>
+      </nav>
+      <div id="order-current" class="memory-panel active">
+        <p class="report-status">Combined shop + reserve stock, the current Convergent pricelist, and your recent sales - cross-referenced so you don't have to check each by hand. Starts with what's flagged "Stock up" on the Memory tab - add anything else below. Type quantities, Save Order to keep your progress for later, Place Order once you've actually sent it to Convergent.</p>
+        <div id="order-status" class="report-status"></div>
+        <div class="order-add-barcode">
+          <input type="text" id="order-add-barcode-input" placeholder="Add by barcode…">
+          <button id="order-add-barcode-btn" class="btn">Add</button>
+          <span id="order-add-barcode-status" class="report-status"></span>
+        </div>
+        <div id="order-list"></div>
+        <h2 class="lookup-heading">Add from current pricelist</h2>
+        <div id="order-add-candidates"></div>
       </div>
-      <div id="order-list"></div>
-      <h2 class="lookup-heading">Add from current pricelist</h2>
-      <div id="order-add-candidates"></div>
+      <div id="order-history" class="memory-panel">
+        <p class="report-status">Every order you've placed, newest first. Open one to mark lines that came back with no stock or less than ordered - it'll show as a warning next time you're building a new order for that product.</p>
+        <div id="order-history-list"></div>
+      </div>
     </div>
   </section>
 
@@ -313,18 +323,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260923e"></script>
-<script src="drive.js?v=20260923e"></script>
-<script src="review.js?v=20260923e"></script>
-<script src="reports.js?v=20260923e"></script>
-<script src="sales.js?v=20260923e"></script>
-<script src="catalog.js?v=20260923e"></script>
-<script src="memory.js?v=20260923e"></script>
-<script src="powerbank.js?v=20260923e"></script>
-<script src="lookup.js?v=20260923e"></script>
-<script src="order.js?v=20260923e"></script>
-<script src="roster.js?v=20260923e"></script>
-<script src="social.js?v=20260923e"></script>
-<script src="app.js?v=20260923e"></script>
+<script src="config.js?v=20260923f"></script>
+<script src="drive.js?v=20260923f"></script>
+<script src="review.js?v=20260923f"></script>
+<script src="reports.js?v=20260923f"></script>
+<script src="sales.js?v=20260923f"></script>
+<script src="catalog.js?v=20260923f"></script>
+<script src="memory.js?v=20260923f"></script>
+<script src="powerbank.js?v=20260923f"></script>
+<script src="lookup.js?v=20260923f"></script>
+<script src="order.js?v=20260923f"></script>
+<script src="roster.js?v=20260923f"></script>
+<script src="social.js?v=20260923f"></script>
+<script src="app.js?v=20260923f"></script>
 </body>
 </html>

@@ -371,6 +371,29 @@ main { padding: 20px; }
 .order-total-line strong { font-variant-numeric: tabular-nums; }
 .order-line-cost { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+.order-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.order-actions input[type="date"] {
+  font: inherit;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+
+.order-history-status {
+  font: inherit;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+}
+.order-status-pending { color: var(--ink-faint); }
+.order-status-ok { color: var(--ok); }
+.order-status-no-stock { color: var(--error); }
+.order-status-lesser { color: var(--warn); }
+.order-history-save-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.order-history-save-row .report-status { margin: 0; }
+
 .empty-state, .loading { color: var(--ink-faint); padding: 20px; text-align: center; }
 
 .status-line {

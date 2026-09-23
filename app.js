@@ -34,6 +34,9 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".sales-tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchSalesTab(btn.dataset.salestab));
   });
+  document.querySelectorAll(".order-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => switchOrderTab(btn.dataset.ordertab));
+  });
 
   document.getElementById("sync-btn").addEventListener("click", doSync);
 
@@ -128,7 +131,7 @@ function switchTab(name) {
   if (name === "memory") loadMemoryTab();
   if (name === "powerbank") loadPowerbankTab();
   if (name === "lookup") loadLookupTab();
-  if (name === "order") Order.render();
+  if (name === "order") loadOrderTab();
   if (name === "roster") Roster.render();
   if (name === "social") Social.render();
 }
@@ -143,7 +146,7 @@ async function rerenderActiveTab() {
   else if (currentTab === "memory") await loadMemoryTab();
   else if (currentTab === "powerbank") await loadPowerbankTab();
   else if (currentTab === "lookup") { lookupLoaded = false; await loadLookupTab(); }
-  else if (currentTab === "order") await Order.render();
+  else if (currentTab === "order") await loadOrderTab();
 }
 
 let currentSalesTab = "latestday";
@@ -194,6 +197,32 @@ async function loadMemoryTab() {
     else if (currentMemoryTab === "new") Memory.renderNewProducts();
   } catch (e) {
     document.getElementById("memory-status").textContent = "";
+    setStatus(e.message, true);
+  }
+}
+
+let currentOrderTab = "current";
+function switchOrderTab(name) {
+  currentOrderTab = name;
+  document.querySelectorAll(".order-tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.ordertab === name));
+  document.querySelectorAll("#tab-order .memory-panel").forEach((p) => p.classList.toggle("active", p.id === `order-${name}`));
+  loadOrderTab();
+}
+
+async function loadOrderTab() {
+  const el = document.getElementById("order-status");
+  el.textContent = "Loading stock, reserve, and pricelist data…";
+  try {
+    await Order.ensureLoaded();
+    el.textContent = "";
+    if (currentOrderTab === "current") {
+      Order.renderList();
+      Order.renderAddCandidates();
+    } else {
+      Order.renderHistoryList();
+    }
+  } catch (e) {
+    el.textContent = "";
     setStatus(e.message, true);
   }
 }
