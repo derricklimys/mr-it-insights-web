@@ -240,13 +240,14 @@ const Memory = {
           <span class="memory-group-count">${g.items.length} item${g.items.length > 1 ? "s" : ""}</span>
         </summary>
         ${Catalog.tableHtmlWithRowIds(
-          ["", "Photo", "Product", "Capacity", "Color", "Barcode", "Combined Stock", "30d Sold", "60d Sold", "90d Sold", "Margin", "Signal"],
+          ["", "Photo", "Product", "Capacity", "Color", "PN", "Barcode", "Combined Stock", "30d Sold", "60d Sold", "90d Sold", "Margin", "Signal"],
           g.items.map((p) => [
             p.productId,
             p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
             escapeHtml(p.name),
             escapeHtml(p.capacity || "—"),
             escapeHtml(p.color || "—"),
+            escapeHtml(p.priceHistoryPn || "—"),
             escapeHtml(p.barcodes[0] || "—"),
             `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
             p.last30Qty, p.last60Qty, p.last90Qty,
