@@ -204,11 +204,25 @@ const Powerbank = {
             .replace(MAH_RE, "").replace(/\s{2,}/g, " ").trim()
         : items[0].name;
       const worstRank = Math.max(...items.map((p) => Catalog.signalRank(p.signal)));
-      return { items, label, worstRank };
+      const isVerbatim = items[0].groupKey.startsWith("pn:");
+      return { items, label, worstRank, isVerbatim };
     });
-    groupList.sort((a, b) => b.worstRank - a.worstRank || a.label.localeCompare(b.label));
+    // Convergent/Verbatim stock (a real, current PN match) first - the rest
+    // is old stock from other brands/suppliers, per Derrick's own framing.
+    groupList.sort((a, b) =>
+      (b.isVerbatim - a.isVerbatim) || (b.worstRank - a.worstRank) || a.label.localeCompare(b.label));
 
-    el.innerHTML = groupList.map((g) => `
+    el.innerHTML = groupList.map((g, i) => {
+      // One label before the first Verbatim group and one right where it
+      // switches to old stock - makes the split visible, not just implicit
+      // in the ordering.
+      const heading = i === 0
+        ? `<h3 class="powerbank-section-heading">${g.isVerbatim ? "Convergent (Verbatim)" : "Other brands - old stock"}</h3>`
+        : (g.isVerbatim === false && groupList[i - 1].isVerbatim === true)
+          ? `<h3 class="powerbank-section-heading">Other brands - old stock</h3>`
+          : "";
+      return `
+      ${heading}
       <details class="memory-group" ${g.worstRank > 0 ? "open" : ""}>
         <summary>
           <span class="memory-group-label">${escapeHtml(g.label)}</span>
@@ -230,7 +244,8 @@ const Powerbank = {
           ]),
         )}
       </details>
-    `).join("");
+    `;
+    }).join("");
 
     el.querySelectorAll("tr[data-id]").forEach((row) => {
       row.addEventListener("click", () => this.select(Number(row.dataset.id)));

@@ -471,6 +471,9 @@ main { padding: 20px; }
 .lookup-layout { max-width: 1000px; }
 .lookup-heading { font-size: 14px; margin: 24px 0 10px; color: var(--ink-soft); }
 .lookup-heading:first-child { margin-top: 0; }
+
+.powerbank-section-heading { font-size: 14px; margin: 20px 0 8px; color: var(--ink-soft); }
+.powerbank-section-heading:first-child { margin-top: 0; }
 .lookup-searchbar input {
   font: inherit;
   width: 100%;
