@@ -154,9 +154,14 @@ const Order = {
       // Aronium entirely but is still being tracked here.
       const reserveQty = Lookup.reserveFor("MEMORY", barcode) ?? 0;
       const v = aronium ? (velocity[aronium.pid] || { d30: 0, d60: 0, d90: 0 }) : { d30: 0, d60: 0, d90: 0 };
+      const name = aronium ? aronium.name : (priced ? priced.description : barcode);
+      // Grouped by SanDisk PN family, same helpers/reasoning as memory.js -
+      // never guessed from Aronium's own name text, only falls back to the
+      // product's own barcode (its own single-item group) when untracked
+      // by any current PN.
       rows.push({
         barcode,
-        name: aronium ? aronium.name : (priced ? priced.description : barcode),
+        name,
         pn: priced ? priced.pn : null,
         description: priced ? priced.description : null,
         dealerPrice: priced ? priced.dealer_price : null,
@@ -166,6 +171,9 @@ const Order = {
         shopStock, reserveQty, stock: shopStock + reserveQty,
         d30: v.d30, d60: v.d60, d90: v.d90,
         qty: this.draftQty[barcode] || 0,
+        capacity: (priced && capacityFromPn(priced.pn)) || capacityFromName(name),
+        color: colorFromName(name),
+        groupKey: priced ? `pn:${familyPrefix(priced.pn)}` : `upc:${barcode}`,
       });
     }
     rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -184,12 +192,31 @@ const Order = {
     return this.rows.reduce((sum, r) => sum + (this._lineCost(r) || 0), 0);
   },
 
+  /** Grouped by SanDisk PN family (or the tracked barcode itself when it
+   * has none) - same idea as memory.js's list. Every group stays open here
+   * (unlike Memory) since this is a short, deliberately-curated tracked
+   * list, not the ~100-item full catalog - nothing to collapse away. */
   renderList() {
     const el = document.getElementById("order-list");
     if (!this.rows.length) {
       el.innerHTML = `<p class="empty-state">No products tracked yet - add some from the list below.</p>`;
       return;
     }
+    const groups = new Map();
+    for (const r of this.rows) {
+      if (!groups.has(r.groupKey)) groups.set(r.groupKey, []);
+      groups.get(r.groupKey).push(r);
+    }
+    const groupList = [...groups.values()].map((items) => {
+      items.sort((a, b) => capacitySortKey(a.capacity) - capacitySortKey(b.capacity) || (a.color || "").localeCompare(b.color || ""));
+      const label = items.length > 1
+        ? items.slice().sort((a, b) => a.name.length - b.name.length)[0].name
+            .replace(NAME_CAPACITY_RE, "").replace(/\s{2,}/g, " ").trim()
+        : items[0].name;
+      return { items, label };
+    });
+    groupList.sort((a, b) => a.label.localeCompare(b.label));
+
     el.innerHTML = `
       <div class="sales-summary">
         <span>${this.rows.length} products tracked${this.pricelistDate ? ` &middot; pricelist as of ${escapeHtml(this.pricelistDate)}` : ""}</span>
@@ -200,34 +227,44 @@ const Order = {
       </div>
       <p class="order-total-line">Order total: <strong id="order-total-value">${money(this._orderTotal())}</strong></p>
       <p id="order-save-status" class="report-status"></p>
-      <div class="sales-table-wrap">
-        <table class="report-table order-table">
-          <thead><tr>
-            <th>Product</th><th>Barcode</th><th>Dealer S$</th><th>SRP</th>
-            <th>Stock</th><th>30d</th><th>60d</th><th>90d</th><th>Order Qty</th><th>Line Cost</th><th></th>
-          </tr></thead>
-          <tbody>
-            ${this.rows.map((r) => `
-              <tr data-barcode="${r.barcode}">
-                <td>
-                  ${escapeHtml(r.name)}
-                  ${r.pn ? `<div class="insight-barcode">${escapeHtml(r.pn)}</div>` : ""}
-                  ${!r.inCurrentPricelist ? `<div class="insight-barcode order-dropped-note">Not in current pricelist</div>` : ""}
-                </td>
-                <td>${escapeHtml(r.barcode)}</td>
-                <td>${r.dealerPrice != null ? money(r.dealerPrice) : "—"}</td>
-                <td>${r.srp != null ? money(r.srp) : "—"}</td>
-                <td>${r.stock} <span class="stock-breakdown">(${r.shopStock} shop + ${r.reserveQty} reserve)</span></td>
-                <td>${r.d30}</td>
-                <td>${r.d60}</td>
-                <td>${r.d90}</td>
-                <td><input type="number" min="0" step="1" class="order-qty-input" data-barcode="${r.barcode}" value="${r.qty || ""}" placeholder="0"></td>
-                <td class="order-line-cost" data-barcode="${r.barcode}">${this._lineCost(r) != null ? money(this._lineCost(r)) : "—"}</td>
-                <td><button class="btn order-remove-btn" data-barcode="${r.barcode}" title="Remove from tracked list">Remove</button></td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
+      ${groupList.map((g) => `
+        <details class="memory-group" open>
+          <summary>
+            <span class="memory-group-label">${escapeHtml(g.label)}</span>
+            <span class="memory-group-count">${g.items.length} item${g.items.length > 1 ? "s" : ""}</span>
+          </summary>
+          <div class="sales-table-wrap">
+            <table class="report-table order-table">
+              <thead><tr>
+                <th>Product</th><th>Capacity</th><th>Color</th><th>Barcode</th><th>Dealer S$</th><th>SRP</th>
+                <th>Stock</th><th>30d</th><th>60d</th><th>90d</th><th>Order Qty</th><th>Line Cost</th><th></th>
+              </tr></thead>
+              <tbody>
+                ${g.items.map((r) => `
+                  <tr data-barcode="${r.barcode}">
+                    <td>
+                      ${escapeHtml(r.name)}
+                      ${r.pn ? `<div class="insight-barcode">${escapeHtml(r.pn)}</div>` : ""}
+                      ${!r.inCurrentPricelist ? `<div class="insight-barcode order-dropped-note">Not in current pricelist</div>` : ""}
+                    </td>
+                    <td>${escapeHtml(r.capacity || "—")}</td>
+                    <td>${escapeHtml(r.color || "—")}</td>
+                    <td>${escapeHtml(r.barcode)}</td>
+                    <td>${r.dealerPrice != null ? money(r.dealerPrice) : "—"}</td>
+                    <td>${r.srp != null ? money(r.srp) : "—"}</td>
+                    <td>${r.stock} <span class="stock-breakdown">(${r.shopStock} shop + ${r.reserveQty} reserve)</span></td>
+                    <td>${r.d30}</td>
+                    <td>${r.d60}</td>
+                    <td>${r.d90}</td>
+                    <td><input type="number" min="0" step="1" class="order-qty-input" data-barcode="${r.barcode}" value="${r.qty || ""}" placeholder="0"></td>
+                    <td class="order-line-cost" data-barcode="${r.barcode}">${this._lineCost(r) != null ? money(this._lineCost(r)) : "—"}</td>
+                    <td><button class="btn order-remove-btn" data-barcode="${r.barcode}" title="Remove from tracked list">Remove</button></td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      `).join("")}
     `;
 
     el.querySelectorAll(".order-qty-input").forEach((input) => {

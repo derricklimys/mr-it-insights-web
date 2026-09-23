@@ -241,9 +241,13 @@ const Catalog = {
     canvas.onmouseleave = () => tooltip.classList.add("hidden");
   },
 
+  /** headers[0] is a placeholder for the id column (r[0]) - that id is only
+   * used for data-id/the row click handler and never rendered as its own
+   * <td>, so it's dropped from the headers too or every real column would
+   * end up labeled one column to the right of its actual data. */
   tableHtmlWithRowIds(headers, rows) {
     return `<table class="report-table memory-table">
-      <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <thead><tr>${headers.slice(1).map((h) => `<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${rows.map((r) => `<tr data-id="${r[0]}">${r.slice(1).map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
     </table>`;
   },

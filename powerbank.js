@@ -13,6 +13,39 @@
 // signal instead comes from real Convergent invoice-cost history wherever
 // 2+ invoices exist for a barcode, exactly like Memory.
 
+// Grouping (see memory.js for the same idea applied to SanDisk PNs): a
+// Verbatim PN's family/model is everything but the last digit - confirmed
+// against the full verbatim_pn_map.json, e.g. VM-32266/32268 are the same
+// 10,000mAh Magnetic Wireless power bank in Blue vs Grey. Unlike SanDisk,
+// Convergent's own "Color/Type" column is already an explicit, reliable
+// color/variant label (not guessed from the Aronium name) - just needs its
+// "(Blue)"/"(Grey) C&C" wrapper stripped down to the plain color word.
+// Products with no Verbatim PN match (other brands - Denmen, Y2K, Wopow,
+// etc.) get their own single-item group keyed by barcode, same as Memory's
+// PN-less fallback.
+const MAH_RE = /(\d[\d,\s]*\d|\d)\s*mAh/i;
+
+function verbatimFamilyPrefix(pn) {
+  return pn.slice(0, -1);
+}
+
+function cleanVerbatimColor(raw) {
+  if (!raw) return null;
+  const m = /\(([^)]+)\)/.exec(raw);
+  const cleaned = (m ? m[1] : raw).trim();
+  return cleaned && !/^\d+$/.test(cleaned) ? cleaned : null;
+}
+
+function capacityFromMah(name) {
+  const m = MAH_RE.exec(name || "");
+  return m ? `${m[1].replace(/[,\s]/g, "")}mAh` : null;
+}
+
+function mahSortKey(capacity) {
+  const m = /(\d+)/.exec(capacity || "");
+  return m ? parseInt(m[1], 10) : Infinity;
+}
+
 const Powerbank = {
   loaded: false,
   products: [],
@@ -118,6 +151,8 @@ const Powerbank = {
         combinedStock,
       });
 
+      const groupKey = verbatimEntry ? `pn:${verbatimFamilyPrefix(verbatimEntry.pn)}` : `upc:${barcodes[0] || r.Id}`;
+
       return {
         productId: r.Id, name: r.Name, currentPrice: r.Price, barcodes,
         photoThumbUrl: photoEntry ? photoEntry.thumb_url : null,
@@ -130,6 +165,8 @@ const Powerbank = {
         last30Qty: last30.qty, last30Revenue: last30.revenue, daysOfStockLeft,
         signal: signal.type, signalReason: signal.reason, marginPct: signal.marginPct,
         costSource: signal.costSource, costRising: signal.costRising,
+        groupKey, capacity: capacityFromMah(r.Name),
+        color: verbatimEntry ? cleanVerbatimColor(verbatimEntry.color) : null,
       };
     });
     this.products.sort((a, b) => Catalog.signalRank(b.signal) - Catalog.signalRank(a.signal));
@@ -146,25 +183,55 @@ const Powerbank = {
     return JSON.parse(await Drive.downloadText(fileId));
   },
 
+  /** Grouped by Verbatim PN family (or the product's own barcode when it
+   * has no Verbatim match) - same idea as Memory's list, see the grouping
+   * helpers up top. */
   renderList() {
     const el = document.getElementById("powerbank-list");
     if (!this.products.length) {
       el.innerHTML = `<p class="empty-state">No Powerbank-group products found in Aronium.</p>`;
       return;
     }
-    el.innerHTML = Catalog.tableHtmlWithRowIds(
-      ["", "Photo", "Product", "Barcode", "Model", "Combined Stock", "Margin", "Signal"],
-      this.products.map((p) => [
-        p.productId,
-        p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
-        escapeHtml(p.name),
-        escapeHtml(p.barcodes[0] || "—"),
-        escapeHtml(p.priceHistoryPn || "—"),
-        `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
-        p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—",
-        Catalog.signalBadge(p.signal),
-      ]),
-    );
+    const groups = new Map();
+    for (const p of this.products) {
+      if (!groups.has(p.groupKey)) groups.set(p.groupKey, []);
+      groups.get(p.groupKey).push(p);
+    }
+    const groupList = [...groups.values()].map((items) => {
+      items.sort((a, b) => mahSortKey(a.capacity) - mahSortKey(b.capacity) || (a.color || "").localeCompare(b.color || ""));
+      const label = items.length > 1
+        ? items.slice().sort((a, b) => a.name.length - b.name.length)[0].name
+            .replace(MAH_RE, "").replace(/\s{2,}/g, " ").trim()
+        : items[0].name;
+      const worstRank = Math.max(...items.map((p) => Catalog.signalRank(p.signal)));
+      return { items, label, worstRank };
+    });
+    groupList.sort((a, b) => b.worstRank - a.worstRank || a.label.localeCompare(b.label));
+
+    el.innerHTML = groupList.map((g) => `
+      <details class="memory-group" ${g.worstRank > 0 ? "open" : ""}>
+        <summary>
+          <span class="memory-group-label">${escapeHtml(g.label)}</span>
+          <span class="memory-group-count">${g.items.length} item${g.items.length > 1 ? "s" : ""}</span>
+        </summary>
+        ${Catalog.tableHtmlWithRowIds(
+          ["", "Photo", "Product", "Capacity", "Color", "Barcode", "Model", "Combined Stock", "Margin", "Signal"],
+          g.items.map((p) => [
+            p.productId,
+            p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
+            escapeHtml(p.name),
+            escapeHtml(p.capacity || "—"),
+            escapeHtml(p.color || "—"),
+            escapeHtml(p.barcodes[0] || "—"),
+            escapeHtml(p.priceHistoryPn || "—"),
+            `${p.combinedStock} <span class="stock-breakdown">(${p.aroniumStock} shop + ${p.reserveQty} reserve)</span>`,
+            p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—",
+            Catalog.signalBadge(p.signal),
+          ]),
+        )}
+      </details>
+    `).join("");
+
     el.querySelectorAll("tr[data-id]").forEach((row) => {
       row.addEventListener("click", () => this.select(Number(row.dataset.id)));
     });
