@@ -13,6 +13,51 @@ const Review = {
     this.renderList();
   },
 
+  /** Uploads a supplier's PDF softcopy straight from this computer - the web
+   * counterpart to the Android app's phone-camera capture, for when a
+   * supplier emails/sends a real PDF instead of Derrick photographing a
+   * paper invoice. Creates the same "uploaded" placeholder record (status
+   * "uploaded", no line items yet) so it slots into the existing review
+   * queue/extraction workflow unchanged - only the source differs. Uses
+   * Drive.findOrCreateFolder/createFolder/uploadMediaFile/saveJson, all
+   * already used elsewhere in this app, so no new Drive capability needed. */
+  async uploadInvoicePdf(file) {
+    const statusEl = document.getElementById("invoice-upload-status");
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      statusEl.textContent = "Please choose a PDF file.";
+      return;
+    }
+    statusEl.textContent = "Uploading…";
+    try {
+      const rootId = await Drive.findOrCreateFolder(CONFIG.ROOT_FOLDER, "root");
+      const invoicesId = await Drive.findOrCreateFolder(CONFIG.INVOICES_FOLDER, rootId);
+      const now = new Date();
+      const hhmmss = [now.getHours(), now.getMinutes(), now.getSeconds()].map((n) => String(n).padStart(2, "0")).join("");
+      const id = `${localDateStr(now)}_${hhmmss}_upload`;
+      const folderId = await Drive.createFolder(id, invoicesId);
+      await Drive.uploadMediaFile(file, folderId, "invoice.pdf");
+      const record = {
+        id,
+        supplier: null,
+        invoice_number: null,
+        invoice_date: null,
+        status: "uploaded",
+        source: "web-upload",
+        captured_by: "web",
+        captured_at: now.toISOString(),
+        line_items: [],
+      };
+      await Drive.saveJson("invoice.json", folderId, record);
+      statusEl.textContent = "Uploaded - ready for review once it's been read.";
+      document.getElementById("invoice-upload-input").value = "";
+      await this.load();
+    } catch (e) {
+      statusEl.textContent = "";
+      setStatus("Upload failed: " + e.message, true);
+    }
+  },
+
   async load() {
     const listEl = document.getElementById("invoice-list");
     listEl.innerHTML = `<p class="loading">Loading invoices…</p>`;

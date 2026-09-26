@@ -16,6 +16,8 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("invoice-search").addEventListener("input", (e) => Review.setSearch(e.target.value));
+  document.getElementById("invoice-upload-btn").addEventListener("click", () => document.getElementById("invoice-upload-input").click());
+  document.getElementById("invoice-upload-input").addEventListener("change", (e) => Review.uploadInvoicePdf(e.target.files[0]));
 
   document.getElementById("order-add-barcode-btn").addEventListener("click", () => Order.addByBarcodeFromInput());
   document.getElementById("order-add-barcode-input").addEventListener("keydown", (e) => {

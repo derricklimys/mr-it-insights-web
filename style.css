@@ -133,6 +133,10 @@ main { padding: 20px; }
   border-radius: 6px;
   background: var(--surface-raised);
 }
+.invoice-upload-row { flex-shrink: 0; }
+.invoice-upload-row .btn { width: 100%; }
+#invoice-upload-status { margin: 0; flex-shrink: 0; }
+#invoice-upload-status:empty { display: none; }
 .invoice-list {
   flex: 1;
   min-height: 0;
