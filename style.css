@@ -371,6 +371,7 @@ main { padding: 20px; }
   background: var(--surface-raised);
 }
 .order-dropped-note { color: var(--warn); }
+.reserve-flag { font-weight: 700; color: var(--error); font-size: 1.15em; }
 .order-total-line { font-size: 15px; margin: 0 0 10px; }
 .order-total-line strong { font-variant-numeric: tabular-nums; }
 .order-line-cost { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -706,7 +707,8 @@ main { padding: 20px; }
 .roster-cell.is-irregular { background: var(--irregular-bg); }
 .roster-cell.is-holiday { background: var(--holiday-bg); }
 .roster-cell.has-gap { border-color: var(--error); box-shadow: 0 0 0 1px var(--error) inset; }
-.roster-cell.has-alert:not(.has-gap) { border-color: var(--warn); }
+.roster-cell.has-punct-issue:not(.has-gap) { border-color: var(--error); box-shadow: 0 0 0 1px var(--error) inset; }
+.roster-cell.has-alert:not(.has-gap):not(.has-punct-issue) { border-color: var(--warn); }
 .roster-ph-tag {
   font-size: 11px; font-weight: 700; color: var(--holiday); background: var(--surface-raised);
   border: 1px solid var(--holiday); border-radius: 4px; padding: 1px 5px; line-height: 1.3;
@@ -727,6 +729,7 @@ main { padding: 20px; }
 .roster-row-ju { background: var(--ju-soft); } .roster-row-ju .who { color: var(--ju); }
 .roster-row-ag { background: var(--ag-soft); } .roster-row-ag .who { color: var(--ag); }
 .roster-row-de { background: var(--de-soft); } .roster-row-de .who { color: var(--de); }
+.roster-row-temp { background: var(--paper); border: 1px dashed var(--line); } .roster-row-temp .who { color: var(--ink); }
 
 /* Derrick's own shifts - the one thing this roster most needs to make obvious */
 .roster-row-you { border: 1.5px solid var(--de); font-weight: 700; }
@@ -740,6 +743,7 @@ main { padding: 20px; }
 }
 .roster-row-absent .who { color: var(--ink-soft); text-decoration: line-through; }
 .roster-gap-note { font-size: 11.5px; color: var(--error); margin-top: auto; }
+.roster-punct-note { font-size: 11.5px; color: var(--error); font-weight: 700; margin-top: auto; }
 
 .roster-alert-card {
   display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 8px;

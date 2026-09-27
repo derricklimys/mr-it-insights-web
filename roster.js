@@ -18,6 +18,15 @@
 const ROSTER_LEAVE_FILE = "roster_leave.json";
 const ROSTER_OVERRIDES_FILE = "roster_overrides.json";
 const ROSTER_ALERTS_FILE = "roster_alerts.json";
+// Written externally by desktop-sync/Sync-AroniumDb.ps1 on the shop PC (from
+// the Windows System event log's own boot/shutdown timestamps) - read-only
+// here, never written back from the web app. Confirmed 2026-09-27 after
+// Derrick needed a way to check staff are actually opening/closing on time
+// for the mall's lease terms, especially with less-reliable temp workers.
+const ROSTER_SHOP_HOURS_FILE = "shop_hours_log.json";
+// Anything within this many minutes of the scheduled time isn't worth
+// flagging - only a real, actionable lateness/early-close should stand out.
+const ROSTER_PUNCT_THRESHOLD_MIN = 5;
 
 const ROSTER_PEOPLE = ["Michael", "Julie", "Agnes", "Derrick"];
 const ROSTER_PKEY = { Michael: "mi", Julie: "ju", Agnes: "ag", Derrick: "de" };
@@ -27,6 +36,10 @@ const ROSTER_PKEY = { Michael: "mi", Julie: "ju", Agnes: "ag", Derrick: "de" };
 const ROSTER_PLABEL = { Michael: "Michael", Julie: "Julie", Agnes: "Agnes", Derrick: "Kelvin" };
 const ROSTER_SHOP_OPEN = "11:00";
 const ROSTER_SHOP_CLOSE = "21:00";
+// Default hours auto-filled when an override just picks AM/PM/FULL without
+// typing exact times - keeps the override form to a single tap for the
+// common case, per Derrick's request to simplify entry.
+const ROSTER_DEFAULT_HOURS = { AM: "11:00-16:00", PM: "16:00-21:00", FULL: "11:00-21:00" };
 const ROSTER_ANCHOR_SAT = "2026-09-19"; // confirmed with Derrick: this Sat = Michael AM, this Sun = Julie AM
 
 // 2026 Singapore public holidays (MOM gazetted). When one falls on a Sunday,
@@ -157,7 +170,10 @@ function rosterComputeGaps(shifts) {
   const open = rosterTimeToMin(ROSTER_SHOP_OPEN);
   const close = rosterTimeToMin(ROSTER_SHOP_CLOSE);
   const intervals = [];
-  for (const person of ROSTER_PEOPLE) {
+  // Every key actually present in `shifts`, not just the fixed ROSTER_PEOPLE -
+  // an override can introduce a temp worker with no "usual" pattern of their
+  // own, and their coverage still has to count toward closing a gap.
+  for (const person of Object.keys(shifts)) {
     const sh = shifts[person];
     if (["AM", "PM", "FULL", "COVER"].includes(sh.status) && sh.hours) {
       const [a, b] = sh.hours.split("-").map(rosterTimeToMin);
@@ -184,6 +200,7 @@ const Roster = {
   leavePeriods: [],
   overrides: new Map(), // key `${date}|${person}` -> {status, hours, tag}
   alerts: [],
+  shopHours: {}, // {dateStr: {boot, shutdown, shutdown_type}} - see ROSTER_SHOP_HOURS_FILE
   viewYear: null,
   viewMonth: null, // 1-12
 
@@ -214,6 +231,11 @@ const Roster = {
     }
     this.alerts = alertsData.alerts;
 
+    // Read-only, no seeding - this file only exists once the shop PC script
+    // has uploaded it at least once. Missing entirely (not yet deployed) or
+    // missing just today's date (PC not yet on) are both normal, not errors.
+    this.shopHours = (await this._loadDriveJson(ROSTER_SHOP_HOURS_FILE)) || {};
+
     this.loaded = true;
   },
 
@@ -222,18 +244,21 @@ const Roster = {
   },
 
   /** Final shifts for one day: base pattern, leave zeroes a person out, then
-   * any saved override wins outright. */
+   * any saved override wins outright - including an override for someone
+   * outside the fixed ROSTER_PEOPLE list (a temp worker with no "usual"
+   * pattern of their own), scanned from the overrides map directly rather
+   * than looked up per-person, so they're never silently dropped. */
   computeDay(dateStr) {
     const base = rosterBasePattern(dateStr);
     const shifts = {};
     for (const person of ROSTER_PEOPLE) {
-      if (this._isOnLeave(person, dateStr)) {
-        shifts[person] = { status: "LEAVE", hours: null };
-      } else {
-        shifts[person] = { status: base[person][0], hours: base[person][1] };
-      }
-      const ov = this.overrides.get(`${dateStr}|${person}`);
-      if (ov) shifts[person] = { status: ov.status, hours: ov.hours, tag: ov.tag };
+      shifts[person] = this._isOnLeave(person, dateStr)
+        ? { status: "LEAVE", hours: null }
+        : { status: base[person][0], hours: base[person][1] };
+    }
+    for (const ov of this.overrides.values()) {
+      if (ov.date !== dateStr) continue;
+      shifts[ov.person] = { status: ov.status, hours: ov.hours, tag: ov.tag };
     }
     const gaps = rosterComputeGaps(shifts);
     const dayAlerts = this.alerts.filter((a) => a.date === dateStr);
@@ -251,15 +276,73 @@ const Roster = {
     const WORKING = ["AM", "PM", "FULL", "COVER"];
     const workers = [];
     const absent = [];
-    for (const person of ROSTER_PEOPLE) {
+    // Every key actually present in `shifts` - see computeDay's note on why
+    // a temp worker (present only via an override, not in ROSTER_PEOPLE)
+    // still has to be walked here, or their shift silently vanishes.
+    for (const person of Object.keys(shifts)) {
       const final = shifts[person];
       const isWorkingNow = WORKING.includes(final.status);
-      const isUsual = base[person][0] !== "OFF";
+      const isUsual = base[person] ? base[person][0] !== "OFF" : false;
       if (isWorkingNow) workers.push({ person, status: final.status, hours: final.hours, tag: final.tag });
       if (isUsual && !isWorkingNow) absent.push({ person, status: final.status });
     }
     workers.sort((a, b) => rosterTimeToMin((a.hours || "23:59").split("-")[0]) - rosterTimeToMin((b.hours || "23:59").split("-")[0]));
     return { workers, absent, gaps, alerts, isIrregular: absent.length > 0 };
+  },
+
+  /** Compares the day's actual PC boot/shutdown time (from shop_hours_log.json)
+   * against whoever was rostered to open (earliest-starting shift) and close
+   * (latest-ending shift). Returns null when there's nothing to compare - no
+   * shop-hours data for that day yet, or nobody rostered at all. openDeltaMin/
+   * closeDeltaMin are only present when the corresponding actual time exists;
+   * positive means late-opening / early-closing respectively. */
+  punctualityFor(dateStr) {
+    const actual = this.shopHours[dateStr];
+    if (!actual) return null;
+    const { workers } = this.daySummary(dateStr);
+    if (!workers.length) return null;
+
+    let opener = null, openStart = Infinity;
+    let closer = null, closeEnd = -Infinity;
+    for (const w of workers) {
+      if (!w.hours) continue;
+      const [a, b] = w.hours.split("-").map(rosterTimeToMin);
+      if (a < openStart) { openStart = a; opener = w.person; }
+      if (b > closeEnd) { closeEnd = b; closer = w.person; }
+    }
+    if (opener === null) return null;
+
+    const result = { opener, closer, actualBoot: actual.boot || null, actualShutdown: actual.shutdown || null };
+    if (actual.boot) result.openDeltaMin = rosterTimeToMin(actual.boot) - openStart;
+    if (actual.shutdown) result.closeDeltaMin = closeEnd - rosterTimeToMin(actual.shutdown);
+    return result;
+  },
+
+  /** Per-person tally for whichever month is currently on screen - counts
+   * and average minutes, separately for late opens and early closes, so a
+   * pattern (rather than a single bad day) is what actually stands out. */
+  computeMonthlyPunctuality() {
+    const pad = String(this.viewMonth).padStart(2, "0");
+    const daysInMonth = new Date(Date.UTC(this.viewYear, this.viewMonth, 0)).getUTCDate();
+    const stats = {};
+    const ensure = (person) => stats[person] || (stats[person] = { opens: 0, lateOpens: 0, lateMinTotal: 0, closes: 0, earlyCloses: 0, earlyMinTotal: 0 });
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${this.viewYear}-${pad}-${String(d).padStart(2, "0")}`;
+      const p = this.punctualityFor(dateStr);
+      if (!p) continue;
+      if (p.openDeltaMin != null) {
+        const s = ensure(p.opener);
+        s.opens++;
+        if (p.openDeltaMin > ROSTER_PUNCT_THRESHOLD_MIN) { s.lateOpens++; s.lateMinTotal += p.openDeltaMin; }
+      }
+      if (p.closeDeltaMin != null) {
+        const s = ensure(p.closer);
+        s.closes++;
+        if (p.closeDeltaMin > ROSTER_PUNCT_THRESHOLD_MIN) { s.earlyCloses++; s.earlyMinTotal += p.closeDeltaMin; }
+      }
+    }
+    return stats;
   },
 
   _slotLabel(status, hours) {
@@ -313,13 +396,52 @@ const Roster = {
     if (this.viewMonth < 1) { this.viewMonth = 12; this.viewYear--; }
     if (this.viewMonth > 12) { this.viewMonth = 1; this.viewYear++; }
     this.renderCalendar();
+    this.renderPunctualitySummary();
   },
 
   renderAll() {
     this.renderCalendar();
+    this.renderPunctualitySummary();
     this.renderAlerts();
     this.renderLeaveList();
     this.renderOverrideList();
+  },
+
+  /** Reuses the same "reserve-flag" bold-red-bigger style as the Order
+   * Memory tab's reserve-stock warning - same idea, a number that changes
+   * an actual decision (here: whether to keep using a temp worker) rather
+   * than a "0 issues" line meant to be skimmed past. */
+  renderPunctualitySummary() {
+    const el = document.getElementById("roster-punctuality-summary");
+    if (!el) return;
+    const stats = this.computeMonthlyPunctuality();
+    const people = Object.keys(stats).sort((a, b) => (stats[b].lateOpens + stats[b].earlyCloses) - (stats[a].lateOpens + stats[a].earlyCloses));
+    if (!people.length) {
+      el.innerHTML = `<p class="empty-state">No shop open/close data for this month yet - needs the shop PC's Sync-AroniumDb.ps1 update deployed first.</p>`;
+      return;
+    }
+    el.innerHTML = `
+      <table class="report-table">
+        <thead><tr>
+          <th>Person</th><th>Opens</th><th>Late opens</th><th>Avg late</th>
+          <th>Closes</th><th>Early closes</th><th>Avg early</th>
+        </tr></thead>
+        <tbody>
+          ${people.map((p) => {
+            const s = stats[p];
+            return `<tr>
+              <td>${escapeHtml(ROSTER_PLABEL[p] || p)}</td>
+              <td>${s.opens}</td>
+              <td class="${s.lateOpens > 1 ? "reserve-flag" : ""}">${s.lateOpens}</td>
+              <td>${s.lateOpens ? Math.round(s.lateMinTotal / s.lateOpens) + "m" : "—"}</td>
+              <td>${s.closes}</td>
+              <td class="${s.earlyCloses > 1 ? "reserve-flag" : ""}">${s.earlyCloses}</td>
+              <td>${s.earlyCloses ? Math.round(s.earlyMinTotal / s.earlyCloses) + "m" : "—"}</td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
   },
 
   renderCalendar() {
@@ -354,6 +476,17 @@ const Roster = {
       const gapNote = hasGap
         ? `<div class="roster-gap-note">Gap ${gaps.map(([a, b]) => `${rosterMinToHHMM(a)}–${rosterMinToHHMM(b)}`).join(", ")}</div>`
         : "";
+
+      const punct = this.punctualityFor(dateStr);
+      const lateOpen = punct && punct.openDeltaMin > ROSTER_PUNCT_THRESHOLD_MIN;
+      const earlyClose = punct && punct.closeDeltaMin > ROSTER_PUNCT_THRESHOLD_MIN;
+      const hasPunctIssue = lateOpen || earlyClose;
+      const punctNote = hasPunctIssue ? `
+        <div class="roster-punct-note">
+          ${lateOpen ? `⚠ Opened ${punct.openDeltaMin}m late (${escapeHtml(ROSTER_PLABEL[punct.opener] || punct.opener)})` : ""}
+          ${earlyClose ? `⚠ Closed ${punct.closeDeltaMin}m early (${escapeHtml(ROSTER_PLABEL[punct.closer] || punct.closer)})` : ""}
+        </div>` : "";
+
       const cellCls = [
         "roster-cell",
         inCurrentMonth ? "" : "other-month",
@@ -362,6 +495,7 @@ const Roster = {
         isWeekend ? "is-weekend" : "",
         isIrregular ? "is-irregular" : "",
         phName ? "is-holiday" : "",
+        hasPunctIssue ? "has-punct-issue" : "",
       ].filter(Boolean).join(" ");
       html += `<div class="${cellCls}" data-date="${dateStr}">
         <div class="roster-cell-head">
@@ -371,6 +505,7 @@ const Roster = {
         ${phName ? `<div class="roster-ph-tag">${escapeHtml(phName)}</div>` : ""}
         <div class="roster-rows">${workerRows}${absentRows}</div>
         ${gapNote}
+        ${punctNote}
       </div>`;
     }
     el.innerHTML = html;
@@ -383,14 +518,17 @@ const Roster = {
    * etc. Derrick gets a star and his own highlight style so his own shifts
    * are the easiest thing on the page to spot. */
   _renderWorkerRow(w) {
-    const key = ROSTER_PKEY[w.person];
+    // A temp worker has no entry in ROSTER_PKEY/ROSTER_PLABEL - fall back to
+    // a neutral style key and their raw typed name rather than "undefined".
+    const key = ROSTER_PKEY[w.person] || "temp";
     const slot = this._slotLabel(w.status, w.hours);
     const isMe = w.person === "Derrick";
     let cls = `roster-row roster-row-${key}`;
     if (isMe) cls += " roster-row-you";
     if (w.tag === "alert") cls += " pending-tag";
     else if (w.tag === "confirmed" || w.tag === "swap") cls += " confirmed-tag";
-    const name = isMe ? `★ ${ROSTER_PLABEL[w.person]}` : ROSTER_PLABEL[w.person];
+    const label = ROSTER_PLABEL[w.person] || w.person;
+    const name = isMe ? `★ ${label}` : label;
     return `<div class="${cls}"><span class="who">${escapeHtml(name)}</span> <span class="hrs">${slot} &middot; ${escapeHtml(w.hours)}</span></div>`;
   },
 
@@ -400,7 +538,8 @@ const Roster = {
    * working shift, and it's what flips the cell into the irregular-day color. */
   _renderAbsentRow(a) {
     const text = a.status === "LEAVE" ? "on leave" : "off";
-    return `<div class="roster-row roster-row-absent"><span class="who">${escapeHtml(ROSTER_PLABEL[a.person])}</span> <span class="hrs">${text}</span></div>`;
+    const label = ROSTER_PLABEL[a.person] || a.person;
+    return `<div class="roster-row roster-row-absent"><span class="who">${escapeHtml(label)}</span> <span class="hrs">${text}</span></div>`;
   },
 
   _prefillOverrideDate(dateStr) {
@@ -489,23 +628,39 @@ const Roster = {
 
   async _addOverride() {
     const date = document.getElementById("roster-ov-date").value;
-    const person = document.getElementById("roster-ov-person").value;
+    let person = document.getElementById("roster-ov-person").value.trim();
     const status = document.getElementById("roster-ov-status").value;
-    const hoursInput = document.getElementById("roster-ov-hours").value.trim();
+    let hoursInput = document.getElementById("roster-ov-hours").value.trim();
     const tag = document.getElementById("roster-ov-tag").value;
     if (!date) {
       setStatus("Pick a date for the override.", true);
       return;
     }
+    if (!person) {
+      setStatus("Enter a name for the override.", true);
+      return;
+    }
+    // "Kelvin" is how he'd naturally type his own name, but "Derrick" is the
+    // internal key everywhere else (data, CSS, color coding) - normalize so
+    // this doesn't create a second, mis-styled "person".
+    if (person.toLowerCase() === "kelvin") person = "Derrick";
+
     const needsHours = status !== "OFF";
+    // AM/PM/FULL get a sensible default so Derrick doesn't have to type exact
+    // times for the common case; COVER (an ad-hoc gap-fill) falls back to the
+    // same FULL-day span rather than leaving it unset.
+    if (needsHours && !hoursInput) {
+      hoursInput = ROSTER_DEFAULT_HOURS[status] || (status === "COVER" ? ROSTER_DEFAULT_HOURS.FULL : "");
+    }
     if (needsHours && !/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(hoursInput)) {
-      setStatus('Enter hours as HH:MM-HH:MM, e.g. "11:00-17:00".', true);
+      setStatus('Enter hours as HH:MM-HH:MM, e.g. "11:00-17:00" (or just pick AM/PM and leave this blank).', true);
       return;
     }
     const ov = { date, person, status, hours: needsHours ? hoursInput : null, tag };
     this.overrides.set(`${date}|${person}`, ov);
     await this._persistOverrides();
     document.getElementById("roster-ov-hours").value = "";
+    document.getElementById("roster-ov-person").value = "";
     this.renderAll();
   },
 

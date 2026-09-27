@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20260926a">
+<link rel="stylesheet" href="style.css?v=20260927b">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -164,6 +164,8 @@
         </div>
       </div>
       <div id="roster-month-leave" class="roster-month-leave"></div>
+      <h2 class="lookup-heading">Opening/Closing Punctuality</h2>
+      <div id="roster-punctuality-summary"></div>
       <div id="roster-calendar" class="roster-calendar"></div>
 
       <h2 class="lookup-heading">Reminders</h2>
@@ -194,12 +196,10 @@
       <div id="roster-override-list"></div>
       <div class="roster-form roster-override-form">
         <input type="date" id="roster-ov-date">
-        <select id="roster-ov-person">
-          <option value="Michael">Michael</option>
-          <option value="Julie">Julie</option>
-          <option value="Agnes">Agnes</option>
-          <option value="Derrick">Kelvin</option>
-        </select>
+        <input type="text" id="roster-ov-person" list="roster-ov-person-list" placeholder="Name (regular or temp worker)">
+        <datalist id="roster-ov-person-list">
+          <option value="Michael"><option value="Julie"><option value="Agnes"><option value="Kelvin">
+        </datalist>
         <select id="roster-ov-status">
           <option value="AM">AM</option>
           <option value="PM">PM</option>
@@ -207,7 +207,7 @@
           <option value="COVER">Covering (custom hours)</option>
           <option value="OFF">Off</option>
         </select>
-        <input type="text" id="roster-ov-hours" placeholder="11:00-17:00">
+        <input type="text" id="roster-ov-hours" placeholder="Optional - defaults by AM/PM/Whole day">
         <select id="roster-ov-tag">
           <option value="confirmed">Confirmed</option>
           <option value="swap">Swap</option>
@@ -328,18 +328,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20260926a"></script>
-<script src="drive.js?v=20260926a"></script>
-<script src="review.js?v=20260926a"></script>
-<script src="reports.js?v=20260926a"></script>
-<script src="sales.js?v=20260926a"></script>
-<script src="catalog.js?v=20260926a"></script>
-<script src="memory.js?v=20260926a"></script>
-<script src="powerbank.js?v=20260926a"></script>
-<script src="lookup.js?v=20260926a"></script>
-<script src="order.js?v=20260926a"></script>
-<script src="roster.js?v=20260926a"></script>
-<script src="social.js?v=20260926a"></script>
-<script src="app.js?v=20260926a"></script>
+<script src="config.js?v=20260927b"></script>
+<script src="drive.js?v=20260927b"></script>
+<script src="review.js?v=20260927b"></script>
+<script src="reports.js?v=20260927b"></script>
+<script src="sales.js?v=20260927b"></script>
+<script src="catalog.js?v=20260927b"></script>
+<script src="memory.js?v=20260927b"></script>
+<script src="powerbank.js?v=20260927b"></script>
+<script src="lookup.js?v=20260927b"></script>
+<script src="order.js?v=20260927b"></script>
+<script src="roster.js?v=20260927b"></script>
+<script src="social.js?v=20260927b"></script>
+<script src="app.js?v=20260927b"></script>
 </body>
 </html>
