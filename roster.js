@@ -524,9 +524,10 @@ const Roster = {
         phName ? "is-holiday" : "",
         hasPunctIssue ? "has-punct-issue" : "",
       ].filter(Boolean).join(" ");
+      const dayLabel = this.hideTimes ? this._fmtShort(dateStr) : String(dayNum);
       html += `<div class="${cellCls}" data-date="${dateStr}">
         <div class="roster-cell-head">
-          <span class="roster-daynum">${dayNum}</span>
+          <span class="roster-daynum">${dayLabel}</span>
           ${(hasAlert && !this.hideTimes) ? `<span class="roster-alert-dot" title="${escapeHtml(alerts.map((a) => a.text).join(" / "))}">?</span>` : ""}
         </div>
         ${phName ? `<div class="roster-ph-tag">${escapeHtml(phName)}</div>` : ""}

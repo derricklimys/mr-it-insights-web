@@ -754,8 +754,16 @@ main { padding: 20px; }
 }
 
 /* Print/share view: bigger, plainer, no admin-only notes - meant to be
-   screenshotted and sent straight to staff. */
-.roster-calendar.simple-mode .roster-cell { min-height: 76px; cursor: default; }
+   screenshotted and sent straight to staff. Weekday/weekend is the only
+   color distinction that matters here - the purple "irregular" and
+   holiday tints are admin-only signals and just look like unexplained
+   noise on a screenshot staff didn't build themselves. */
+.roster-calendar.simple-mode .roster-cell { min-height: 76px; cursor: default; background: var(--surface-raised); }
+.roster-calendar.simple-mode .roster-cell.is-weekend { background: var(--weekend-bg); }
+.roster-calendar.simple-mode .roster-cell.is-irregular,
+.roster-calendar.simple-mode .roster-cell.is-holiday { background: var(--surface-raised); }
+.roster-calendar.simple-mode .roster-cell.is-weekend.is-irregular,
+.roster-calendar.simple-mode .roster-cell.is-weekend.is-holiday { background: var(--weekend-bg); }
 .roster-calendar.simple-mode .roster-daynum { font-size: 16px; }
 .roster-simple-line { font-size: 13.5px; line-height: 1.5; }
 .roster-simple-line strong { color: var(--ink); }
