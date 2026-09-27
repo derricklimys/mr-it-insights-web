@@ -203,6 +203,7 @@ const Roster = {
   shopHours: {}, // {dateStr: {boot, shutdown, shutdown_type}} - see ROSTER_SHOP_HOURS_FILE
   viewYear: null,
   viewMonth: null, // 1-12
+  hideTimes: false, // "simple view" toggle - AM/PM + names only, for printing/sharing with staff
 
   async ensureLoaded() {
     if (this.loaded) return;
@@ -352,6 +353,27 @@ const Roster = {
     return startMin < 14 * 60 ? "AM" : "PM";
   },
 
+  /** A temp worker has no ROSTER_PLABEL entry - fall back to their raw typed name. */
+  _personLabel(person) {
+    return ROSTER_PLABEL[person] || person;
+  },
+
+  /** Plain "AM - Name, Name" / "PM - Name" lines for the simple/print view -
+   * no hours, no admin-only notes, just who's actually working each half of
+   * the day, since that's all staff need to see on a screenshot. */
+  _renderSimpleSlots(workers) {
+    const amNames = [];
+    const pmNames = [];
+    for (const w of workers) {
+      const slot = this._slotLabel(w.status, w.hours);
+      const label = this._personLabel(w.person);
+      if (slot === "AM" || slot === "whole day") amNames.push(label);
+      if (slot === "PM" || slot === "whole day") pmNames.push(label);
+    }
+    const line = (tag, names) => `<div class="roster-simple-line"><strong>${tag}</strong> - ${escapeHtml(names.length ? names.join(", ") : "—")}</div>`;
+    return line("AM", amNames) + line("PM", pmNames);
+  },
+
   _fmtShort(dateStr) {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const [, m, d] = dateStr.split("-").map(Number);
@@ -388,6 +410,10 @@ const Roster = {
     document.getElementById("roster-alert-add-btn").onclick = () => this._addAlert();
     document.getElementById("roster-leave-add-btn").onclick = () => this._addLeave();
     document.getElementById("roster-ov-add-btn").onclick = () => this._addOverride();
+    document.getElementById("roster-hide-times").onchange = (e) => {
+      this.hideTimes = e.target.checked;
+      this.renderCalendar();
+    };
     this.renderAll();
   },
 
@@ -471,9 +497,10 @@ const Roster = {
       const isWeekend = wd === 0 || wd === 6;
       const phName = ROSTER_PUBLIC_HOLIDAYS[dateStr];
 
-      const workerRows = workers.map((w) => this._renderWorkerRow(w)).join("");
-      const absentRows = absent.map((a) => this._renderAbsentRow(a)).join("");
-      const gapNote = hasGap
+      const bodyHtml = this.hideTimes
+        ? this._renderSimpleSlots(workers)
+        : workers.map((w) => this._renderWorkerRow(w, dateStr)).join("") + absent.map((a) => this._renderAbsentRow(a)).join("");
+      const gapNote = (hasGap && !this.hideTimes)
         ? `<div class="roster-gap-note">Gap ${gaps.map(([a, b]) => `${rosterMinToHHMM(a)}–${rosterMinToHHMM(b)}`).join(", ")}</div>`
         : "";
 
@@ -481,10 +508,10 @@ const Roster = {
       const lateOpen = punct && punct.openDeltaMin > ROSTER_PUNCT_THRESHOLD_MIN;
       const earlyClose = punct && punct.closeDeltaMin > ROSTER_PUNCT_THRESHOLD_MIN;
       const hasPunctIssue = lateOpen || earlyClose;
-      const punctNote = hasPunctIssue ? `
+      const punctNote = (hasPunctIssue && !this.hideTimes) ? `
         <div class="roster-punct-note">
-          ${lateOpen ? `⚠ Opened ${punct.openDeltaMin}m late (${escapeHtml(ROSTER_PLABEL[punct.opener] || punct.opener)})` : ""}
-          ${earlyClose ? `⚠ Closed ${punct.closeDeltaMin}m early (${escapeHtml(ROSTER_PLABEL[punct.closer] || punct.closer)})` : ""}
+          ${lateOpen ? `⚠ Opened ${punct.openDeltaMin}m late (${escapeHtml(this._personLabel(punct.opener))})` : ""}
+          ${earlyClose ? `⚠ Closed ${punct.closeDeltaMin}m early (${escapeHtml(this._personLabel(punct.closer))})` : ""}
         </div>` : "";
 
       const cellCls = [
@@ -500,36 +527,56 @@ const Roster = {
       html += `<div class="${cellCls}" data-date="${dateStr}">
         <div class="roster-cell-head">
           <span class="roster-daynum">${dayNum}</span>
-          ${hasAlert ? `<span class="roster-alert-dot" title="${escapeHtml(alerts.map((a) => a.text).join(" / "))}">?</span>` : ""}
+          ${(hasAlert && !this.hideTimes) ? `<span class="roster-alert-dot" title="${escapeHtml(alerts.map((a) => a.text).join(" / "))}">?</span>` : ""}
         </div>
         ${phName ? `<div class="roster-ph-tag">${escapeHtml(phName)}</div>` : ""}
-        <div class="roster-rows">${workerRows}${absentRows}</div>
+        <div class="roster-rows">${bodyHtml}</div>
         ${gapNote}
         ${punctNote}
       </div>`;
     }
     el.innerHTML = html;
+    el.classList.toggle("simple-mode", this.hideTimes);
     el.querySelectorAll(".roster-cell[data-date]").forEach((cell) => {
       cell.addEventListener("click", () => this._prefillOverrideDate(cell.dataset.date));
     });
+    el.querySelectorAll(".roster-row-clickable[data-person]").forEach((row) => {
+      row.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._prefillOverrideForOff(row.dataset.date, row.dataset.person);
+      });
+    });
+  },
+
+  /** One click on a working person's name pre-fills the override form to
+   * mark them Off that day - the way to "remove" someone from a base-pattern
+   * shift, since their appearance on the calendar isn't its own override
+   * that could otherwise just be deleted. */
+  _prefillOverrideForOff(dateStr, person) {
+    document.getElementById("roster-ov-date").value = dateStr;
+    document.getElementById("roster-ov-person").value = this._personLabel(person);
+    document.getElementById("roster-ov-status").value = "OFF";
+    document.getElementById("roster-ov-hours").value = "";
+    setStatus(`Ready: click "Save override" below to mark ${this._personLabel(person)} off on ${dateStr}.`);
+    document.getElementById("roster-ov-date").scrollIntoView({ behavior: "smooth", block: "center" });
   },
 
   /** A person actually covering a shift today - shown as "Name - AM (hours)"
    * etc. Derrick gets a star and his own highlight style so his own shifts
    * are the easiest thing on the page to spot. */
-  _renderWorkerRow(w) {
+  _renderWorkerRow(w, dateStr) {
     // A temp worker has no entry in ROSTER_PKEY/ROSTER_PLABEL - fall back to
     // a neutral style key and their raw typed name rather than "undefined".
     const key = ROSTER_PKEY[w.person] || "temp";
     const slot = this._slotLabel(w.status, w.hours);
     const isMe = w.person === "Derrick";
-    let cls = `roster-row roster-row-${key}`;
+    let cls = `roster-row roster-row-${key} roster-row-clickable`;
     if (isMe) cls += " roster-row-you";
     if (w.tag === "alert") cls += " pending-tag";
     else if (w.tag === "confirmed" || w.tag === "swap") cls += " confirmed-tag";
-    const label = ROSTER_PLABEL[w.person] || w.person;
+    const label = this._personLabel(w.person);
     const name = isMe ? `★ ${label}` : label;
-    return `<div class="${cls}"><span class="who">${escapeHtml(name)}</span> <span class="hrs">${slot} &middot; ${escapeHtml(w.hours)}</span></div>`;
+    return `<div class="${cls}" data-person="${escapeHtml(w.person)}" data-date="${escapeHtml(dateStr)}" title="Click to mark ${escapeHtml(label)} off this day"><span class="who">${escapeHtml(name)}</span> <span class="hrs">${slot} &middot; ${escapeHtml(w.hours)}</span></div>`;
   },
 
   /** Someone whose normal working day this is, but who isn't covering it -
@@ -538,7 +585,7 @@ const Roster = {
    * working shift, and it's what flips the cell into the irregular-day color. */
   _renderAbsentRow(a) {
     const text = a.status === "LEAVE" ? "on leave" : "off";
-    const label = ROSTER_PLABEL[a.person] || a.person;
+    const label = this._personLabel(a.person);
     return `<div class="roster-row roster-row-absent"><span class="who">${escapeHtml(label)}</span> <span class="hrs">${text}</span></div>`;
   },
 
