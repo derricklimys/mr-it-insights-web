@@ -547,6 +547,12 @@ const Roster = {
         this._prefillOverrideForOff(row.dataset.date, row.dataset.person);
       });
     });
+    el.querySelectorAll(".roster-swap-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._prefillOverrideForSwap(btn.dataset.date, btn.dataset.person, btn.dataset.status);
+      });
+    });
   },
 
   /** One click on a working person's name pre-fills the override form to
@@ -559,6 +565,27 @@ const Roster = {
     document.getElementById("roster-ov-status").value = "OFF";
     document.getElementById("roster-ov-hours").value = "";
     setStatus(`Ready: click "Save override" below to mark ${this._personLabel(person)} off on ${dateStr}.`);
+    document.getElementById("roster-ov-date").scrollIntoView({ behavior: "smooth", block: "center" });
+  },
+
+  /** One-click shift swap: marks the current person off right away (that
+   * part's mechanical, no judgment call needed), then pre-fills the
+   * override form for the replacement - just type the name and save. Status
+   * carries over from whoever's being replaced (AM/PM/FULL/COVER) and hours
+   * are left blank so the AM/PM default kicks in - per Derrick's request,
+   * no need to type exact times for a normal swap. */
+  async _prefillOverrideForSwap(dateStr, person, status) {
+    this.overrides.set(`${dateStr}|${person}`, { date: dateStr, person, status: "OFF", hours: null, tag: "swap" });
+    await this._persistOverrides();
+    this.renderAll();
+
+    document.getElementById("roster-ov-date").value = dateStr;
+    document.getElementById("roster-ov-person").value = "";
+    document.getElementById("roster-ov-status").value = ["AM", "PM", "FULL", "COVER"].includes(status) ? status : "AM";
+    document.getElementById("roster-ov-hours").value = "";
+    document.getElementById("roster-ov-tag").value = "swap";
+    setStatus(`${this._personLabel(person)} marked off ${dateStr}. Type who's covering below and click "Save override" - the ${status} hours fill in automatically.`);
+    document.getElementById("roster-ov-person").focus();
     document.getElementById("roster-ov-date").scrollIntoView({ behavior: "smooth", block: "center" });
   },
 
@@ -577,7 +604,10 @@ const Roster = {
     else if (w.tag === "confirmed" || w.tag === "swap") cls += " confirmed-tag";
     const label = this._personLabel(w.person);
     const name = isMe ? `★ ${label}` : label;
-    return `<div class="${cls}" data-person="${escapeHtml(w.person)}" data-date="${escapeHtml(dateStr)}" title="Click to mark ${escapeHtml(label)} off this day"><span class="who">${escapeHtml(name)}</span> <span class="hrs">${slot} &middot; ${escapeHtml(w.hours)}</span></div>`;
+    return `<div class="${cls}" data-person="${escapeHtml(w.person)}" data-date="${escapeHtml(dateStr)}" title="Click to mark ${escapeHtml(label)} off this day">
+      <span class="who">${escapeHtml(name)}</span> <span class="hrs">${slot} &middot; ${escapeHtml(w.hours)}</span>
+      <button class="roster-swap-btn" data-person="${escapeHtml(w.person)}" data-date="${escapeHtml(dateStr)}" data-status="${escapeHtml(w.status)}" title="Change who's covering this ${slot} shift">⇄</button>
+    </div>`;
   },
 
   /** Someone whose normal working day this is, but who isn't covering it -

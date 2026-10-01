@@ -748,6 +748,14 @@ main { padding: 20px; }
 .roster-row-clickable { cursor: pointer; }
 .roster-row-clickable:hover { outline: 1.5px solid var(--error); outline-offset: -1px; }
 
+.roster-swap-btn {
+  margin-left: auto; flex: none; cursor: pointer;
+  border: none; background: none; padding: 0 2px;
+  font-size: 12px; line-height: 1; color: var(--ink-faint);
+  border-radius: 3px;
+}
+.roster-swap-btn:hover { color: var(--ink); background: rgba(0, 0, 0, 0.08); }
+
 .roster-simple-toggle {
   display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft);
   margin-left: auto; cursor: pointer;
