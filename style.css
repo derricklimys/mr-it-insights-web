@@ -70,6 +70,24 @@ body {
   background: var(--surface-raised);
   border-bottom: 1px solid var(--line);
 }
+.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.icon-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.icon-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+/* Menu hidden: the page gets the whole window (e.g. comparing invoices side by side) */
+.shell.nav-collapsed .sidenav { display: none; }
 .crumb { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-soft); }
 .crumb strong { color: var(--ink); }
 

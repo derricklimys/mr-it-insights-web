@@ -15,6 +15,21 @@ window.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("mrit_sidebar_collapsed", isCollapsed ? "1" : "0");
   });
 
+  // Whole-menu collapse (separate from the invoice-list toggle above): hides the
+  // sidebar so the page uses the full window, remembered between visits.
+  const shell = document.querySelector(".shell");
+  const navToggle = document.getElementById("nav-toggle");
+  const applyNavCollapsed = (collapsedNav) => {
+    shell.classList.toggle("nav-collapsed", collapsedNav);
+    navToggle.setAttribute("aria-expanded", String(!collapsedNav));
+    const label = collapsedNav ? "Show menu" : "Hide menu";
+    navToggle.title = label;
+    navToggle.setAttribute("aria-label", label);
+    localStorage.setItem("mrit_nav_collapsed", collapsedNav ? "1" : "0");
+  };
+  applyNavCollapsed(localStorage.getItem("mrit_nav_collapsed") === "1");
+  navToggle.addEventListener("click", () => applyNavCollapsed(!shell.classList.contains("nav-collapsed")));
+
   document.getElementById("invoice-search").addEventListener("input", (e) => Review.setSearch(e.target.value));
   document.getElementById("invoice-upload-btn").addEventListener("click", () => document.getElementById("invoice-upload-input").click());
   document.getElementById("invoice-upload-input").addEventListener("change", (e) => Review.uploadInvoicePdf(e.target.files[0]));
