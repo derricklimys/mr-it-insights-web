@@ -123,9 +123,25 @@ async function doSync() {
   }
 }
 
+// Which sidebar group each page lives under - drives the breadcrumb in the top bar.
+const NAV_CRUMBS = {
+  review: ["Sales & Money", "Invoices"],
+  sales: ["Sales & Money", "Sales"],
+  reports: ["Sales & Money", "Reports"],
+  memory: ["Stock & Ordering", "Memory"],
+  powerbank: ["Stock & Ordering", "Powerbank"],
+  lookup: ["Stock & Ordering", "Lookup"],
+  order: ["Stock & Ordering", "Order Memory"],
+  roster: ["Team", "Roster"],
+  social: ["Marketing", "Social"],
+};
+
 let currentTab = "review";
 function switchTab(name) {
   currentTab = name;
+  const [crumbGroup, crumbPage] = NAV_CRUMBS[name] || ["", name];
+  document.getElementById("crumb-group").textContent = crumbGroup;
+  document.getElementById("crumb-page").textContent = crumbPage;
   document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "sales") loadSalesTab();

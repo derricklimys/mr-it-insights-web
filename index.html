@@ -4,13 +4,47 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20261001a">
+<link rel="stylesheet" href="style.css?v=20261002b">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
 
+<div class="shell">
+
+<aside class="sidenav">
+  <div class="sidenav-brand">
+    <div class="brand-name">Mr IT Ops</div>
+    <div class="brand-sub">Mr IT Pte Ltd</div>
+  </div>
+  <nav id="tabs" class="tabs hidden" aria-label="Main">
+    <div class="nav-group">
+      <div class="nav-group-label">Sales &amp; Money</div>
+      <button class="tab-btn" data-tab="sales"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-9M3 20h18"/></svg>Sales</button>
+      <button class="tab-btn" data-tab="reports"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7zM9 12h6M9 16h6"/></svg>Reports</button>
+      <button class="tab-btn active" data-tab="review"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>Invoices <span id="review-count" class="badge"></span></button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Stock &amp; Ordering</div>
+      <button class="tab-btn" data-tab="memory"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l3 3v15H7zM10 3v4M13 3v4"/></svg>Memory</button>
+      <button class="tab-btn" data-tab="powerbank"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h15v8H3zM20 11v2"/></svg>Powerbank</button>
+      <button class="tab-btn" data-tab="lookup"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14zM20 20l-4-4"/></svg>Lookup</button>
+      <button class="tab-btn" data-tab="order"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.5l2.2 11h10l2-7.5H7M9 20h.01M17 20h.01"/></svg>Order Memory</button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Team</div>
+      <button class="tab-btn" data-tab="roster"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5"/></svg>Roster</button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Marketing</div>
+      <button class="tab-btn" data-tab="social"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l18-8-6 18-3-8z"/></svg>Social</button>
+    </div>
+  </nav>
+</aside>
+
+<div class="content">
+
 <header class="topbar">
-  <h1>Mr IT Ops</h1>
+  <div class="crumb"><span id="crumb-group">Sales &amp; Money</span><span>/</span><strong id="crumb-page">Invoices</strong></div>
   <div class="topbar-right">
     <div id="sync-area" class="sync-area hidden">
       <button id="sync-btn" class="btn" title="Re-fetch the latest Aronium data and invoice list">Sync</button>
@@ -22,18 +56,6 @@
     </div>
   </div>
 </header>
-
-<nav id="tabs" class="tabs hidden">
-  <button class="tab-btn active" data-tab="review">Invoices <span id="review-count" class="badge"></span></button>
-  <button class="tab-btn" data-tab="sales">Sales</button>
-  <button class="tab-btn" data-tab="reports">Reports</button>
-  <button class="tab-btn" data-tab="memory">Memory</button>
-  <button class="tab-btn" data-tab="powerbank">Powerbank</button>
-  <button class="tab-btn" data-tab="lookup">Lookup</button>
-  <button class="tab-btn" data-tab="order">Order Memory</button>
-  <button class="tab-btn" data-tab="roster">Roster</button>
-  <button class="tab-btn" data-tab="social">Social</button>
-</nav>
 
 <main id="app" class="hidden">
   <section id="tab-review" class="tab-panel active">
@@ -207,7 +229,7 @@
         <select id="roster-ov-status">
           <option value="AM">AM</option>
           <option value="PM">PM</option>
-          <option value="FULL">Whole day</option>
+          <option value="FULL">Whole day (AM + PM)</option>
           <option value="COVER">Covering (custom hours)</option>
           <option value="OFF">Off</option>
         </select>
@@ -284,6 +306,9 @@
   </section>
 </main>
 
+</div>
+</div>
+
 <div id="memory-detail-modal" class="modal-overlay hidden">
   <div class="modal-box">
     <button id="memory-detail-close" class="modal-close" aria-label="Close" title="Close">&times;</button>
@@ -332,18 +357,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20261001a"></script>
-<script src="drive.js?v=20261001a"></script>
-<script src="review.js?v=20261001a"></script>
-<script src="reports.js?v=20261001a"></script>
-<script src="sales.js?v=20261001a"></script>
-<script src="catalog.js?v=20261001a"></script>
-<script src="memory.js?v=20261001a"></script>
-<script src="powerbank.js?v=20261001a"></script>
-<script src="lookup.js?v=20261001a"></script>
-<script src="order.js?v=20261001a"></script>
-<script src="roster.js?v=20261001a"></script>
-<script src="social.js?v=20261001a"></script>
-<script src="app.js?v=20261001a"></script>
+<script src="config.js?v=20261002b"></script>
+<script src="drive.js?v=20261002b"></script>
+<script src="review.js?v=20261002b"></script>
+<script src="reports.js?v=20261002b"></script>
+<script src="sales.js?v=20261002b"></script>
+<script src="catalog.js?v=20261002b"></script>
+<script src="memory.js?v=20261002b"></script>
+<script src="powerbank.js?v=20261002b"></script>
+<script src="lookup.js?v=20261002b"></script>
+<script src="order.js?v=20261002b"></script>
+<script src="roster.js?v=20261002b"></script>
+<script src="social.js?v=20261002b"></script>
+<script src="app.js?v=20261002b"></script>
 </body>
 </html>

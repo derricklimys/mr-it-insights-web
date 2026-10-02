@@ -596,7 +596,8 @@ const Roster = {
     // A temp worker has no entry in ROSTER_PKEY/ROSTER_PLABEL - fall back to
     // a neutral style key and their raw typed name rather than "undefined".
     const key = ROSTER_PKEY[w.person] || "temp";
-    const slot = this._slotLabel(w.status, w.hours);
+    const rawSlot = this._slotLabel(w.status, w.hours);
+    const slot = rawSlot === "whole day" ? "AM + PM" : rawSlot;
     const isMe = w.person === "Derrick";
     let cls = `roster-row roster-row-${key} roster-row-clickable`;
     if (isMe) cls += " roster-row-you";

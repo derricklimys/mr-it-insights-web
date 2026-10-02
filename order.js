@@ -10,6 +10,15 @@ const ORDER_DRAFT_FILE = "order_memory_draft.json";
 const ORDER_HISTORY_FILE = "order_memory_history.json";
 const ORDER_STATUS_LABELS = { pending: "Pending", ok: "OK", no_stock: "No Stock", lesser_stock: "Lesser Stock" };
 
+/** Makes a meaningful reserve count hard to miss while deciding an order
+ * quantity - confirmed 2026-09-26 after Derrick over-ordered Ultra Flair
+ * 128GB without noticing 6 units already sitting in backroom reserve.
+ * Anything more than 1 unit in reserve gets flagged - a single stray unit
+ * isn't worth calling out, but 2+ is enough to change an order decision. */
+function reserveHighlightClass(qty) {
+  return qty > 1 ? "reserve-flag" : "";
+}
+
 function orderStatusClass(status) {
   return status === "ok" ? "order-status-ok"
     : status === "no_stock" ? "order-status-no-stock"
@@ -277,7 +286,7 @@ const Order = {
                     <td>${escapeHtml(r.barcode)}</td>
                     <td>${r.dealerPrice != null ? money(r.dealerPrice) : "—"}</td>
                     <td>${r.srp != null ? money(r.srp) : "—"}</td>
-                    <td>${r.stock} <span class="stock-breakdown">(${r.shopStock} shop + ${r.reserveQty} reserve)</span></td>
+                    <td>${r.stock} <span class="stock-breakdown">(${r.shopStock} shop + <span class="${reserveHighlightClass(r.reserveQty)}">${r.reserveQty} reserve</span>)</span></td>
                     <td>${r.d30}</td>
                     <td>${r.d60}</td>
                     <td>${r.d90}</td>
