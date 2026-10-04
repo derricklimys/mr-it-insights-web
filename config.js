@@ -4,6 +4,8 @@
 // not a secret.
 const CONFIG = {
   SITE_URL: "https://mrit.com.sg",
+  // Live shop-PC status (Cloudflare Worker; GET is read-only and carries only on/off times).
+  SHOP_STATUS_URL: "https://mrit-shop-status.shiokrecipe.workers.dev/status",
   CLIENT_ID: "985263849983-h29lfi11tpadjml0l5f5slba5bh4go72.apps.googleusercontent.com",
   SCOPES: [
     "https://www.googleapis.com/auth/drive.file",

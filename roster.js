@@ -203,6 +203,8 @@ const Roster = {
   shopHours: {}, // {dateStr: {boot, shutdown, shutdown_type}} - see ROSTER_SHOP_HOURS_FILE
   viewYear: null,
   viewMonth: null, // 1-12
+  liveStatus: null, // {now, today, days} from the shop-status Worker, or null if unreachable
+  _liveTimer: null,
   hideTimes: false, // "simple view" toggle - AM/PM + names only, for printing/sharing with staff
 
   async ensureLoaded() {
@@ -238,6 +240,69 @@ const Roster = {
     this.shopHours = (await this._loadDriveJson(ROSTER_SHOP_HOURS_FILE)) || {};
 
     this.loaded = true;
+  },
+
+  /** Pulls the live shop-PC status (boot reported the moment Windows starts) and
+   * folds it into shopHours, so today's opening shows here at once instead of
+   * after the evening sync. The Worker's own clock stamps the times (Singapore
+   * time), so a wrong shop-PC clock can't skew them. */
+  async refreshLive() {
+    try {
+      const res = await fetch(CONFIG.SHOP_STATUS_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      this.liveStatus = await res.json();
+    } catch (e) {
+      this.liveStatus = null;
+    }
+    const live = this.liveStatus;
+    if (live) {
+      for (const [d, v] of Object.entries(live.days || {})) {
+        const entry = { ...(this.shopHours[d] || {}) };
+        if (v.boot) entry.boot = v.boot;
+        if (v.shutdown) { entry.shutdown = v.shutdown; entry.shutdown_type = "clean"; }
+        else if (d < live.today && v.last_seen) { entry.shutdown = v.last_seen; entry.shutdown_type = "last-seen"; }
+        this.shopHours[d] = entry;
+      }
+    }
+    this.renderLiveStatus();
+    this.renderCalendar();
+    this.renderPunctualitySummary();
+  },
+
+  renderLiveStatus() {
+    const el = document.getElementById("roster-live-status");
+    if (!el) return;
+    const live = this.liveStatus;
+    if (!live) {
+      el.innerHTML = `<div class="roster-live roster-live-unknown">Live shop status unavailable right now.</div>`;
+      return;
+    }
+    const today = live.today;
+    const nowMin = rosterTimeToMin(live.now.slice(11, 16));
+    const day = (live.days || {})[today] || {};
+    const { workers } = this.daySummary(today);
+    let opener = null, openStart = null;
+    for (const w of workers) {
+      if (!w.hours) continue;
+      const a = rosterTimeToMin(w.hours.split("-")[0]);
+      if (openStart === null || a < openStart) { openStart = a; opener = w.person; }
+    }
+    const rostered = opener ? ` Rostered to open: ${escapeHtml(ROSTER_PLABEL[opener] || opener)} at ${String(Math.floor(openStart / 60)).padStart(2, "0")}:${String(openStart % 60).padStart(2, "0")}.` : "";
+    let cls = "roster-live-wait", text;
+    if (day.boot) {
+      const late = openStart === null ? null : rosterTimeToMin(day.boot) - openStart;
+      const note = late === null ? "" : late > 5 ? ` (${late} min late)` : " (on time)";
+      cls = late !== null && late > 5 ? "roster-live-late" : "roster-live-ok";
+      const quiet = day.last_seen ? nowMin - rosterTimeToMin(day.last_seen) : 0;
+      const status = day.shutdown ? `shut down at ${escapeHtml(day.shutdown)}` : quiet > 12 ? `last seen ${escapeHtml(day.last_seen)} (PC off or offline)` : "on now";
+      text = `Shop PC turned on at <strong>${escapeHtml(day.boot)}</strong>${note} - ${status}.${rostered}`;
+    } else if (openStart !== null && nowMin >= openStart + 15) {
+      cls = "roster-live-late";
+      text = `Shop PC is <strong>still off</strong>, ${nowMin - openStart} min after opening.${rostered}`;
+    } else {
+      text = `Shop PC not on yet.${rostered}`;
+    }
+    el.innerHTML = `<div class="roster-live ${cls}">${text} <span class="roster-live-time">Updated ${escapeHtml(live.now.slice(11, 16))}</span></div>`;
   },
 
   _isOnLeave(person, dateStr) {
@@ -415,6 +480,13 @@ const Roster = {
       this.renderCalendar();
     };
     this.renderAll();
+    this.refreshLive();
+    if (!this._liveTimer) {
+      this._liveTimer = setInterval(() => {
+        const panel = document.getElementById("tab-roster");
+        if (panel && panel.offsetParent !== null) this.refreshLive();
+      }, 60000);
+    }
   },
 
   _shiftMonth(delta) {

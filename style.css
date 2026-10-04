@@ -956,3 +956,10 @@ main { padding: 28px 32px; }
   display: flex; align-items: center; justify-content: center; background: var(--paper);
   color: var(--ink-faint); font-size: 20px;
 }
+
+/* Live shop-PC status banner on the Roster tab */
+.roster-live { padding: 10px 14px; border-radius: 8px; margin: 0 0 12px; border-left: 4px solid; font-size: 0.95rem; }
+.roster-live-ok { background: #e7f5ea; border-color: #2e7d32; color: #1b4d1f; }
+.roster-live-late { background: #fdeaea; border-color: #c62828; color: #7a1010; }
+.roster-live-wait, .roster-live-unknown { background: #f3f3f3; border-color: #888; color: #333; }
+.roster-live-time { float: right; opacity: 0.6; font-size: 0.8rem; }
