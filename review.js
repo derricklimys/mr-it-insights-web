@@ -355,6 +355,30 @@ const Review = {
     document.getElementById("invoice-preview-modal").classList.add("hidden");
   },
 
+  /** For every line whose Match is a barcode but which has no product id yet, find the Aronium product
+   * for that barcode and fill in the id (and the name, if blank). Best effort: if the Aronium data can't
+   * be loaded the invoice still saves, just without the link. */
+  async linkProductsFromBarcodes(lines) {
+    const needs = lines.filter((li) => !li.matched_product_id && /^\d{5,14}$/.test(String(li.match_method || "")));
+    if (!needs.length) return;
+    try {
+      await Reports.ensureLoaded();
+      for (const li of needs) {
+        const rows = Reports.query(
+          "SELECT DISTINCT p.Id AS id, p.Name AS name FROM Barcode b JOIN Product p ON p.Id = b.ProductId WHERE b.Value = ?",
+          [String(li.match_method)],
+        );
+        if (rows.length === 1) {
+          li.matched_product_id = rows[0].id;
+          if (!li.matched_product_name) li.matched_product_name = rows[0].name;
+          if (!li.barcode) li.barcode = String(li.match_method);
+        }
+      }
+    } catch (e) {
+      console.warn("Couldn't link products from barcodes:", e);
+    }
+  },
+
   async save(inv) {
     const saveStatus = document.getElementById("save-status");
     saveStatus.textContent = "Saving…";
@@ -369,6 +393,9 @@ const Review = {
       li.true_cost_incl_gst = numOrNull(row.querySelector(".li-cost").value);
       li.confidence = 1.0; // human-reviewed
     });
+    // The Match column holds a barcode when a line was matched by hand. The cost and margin reports only
+    // use lines that also carry a product id, so look the product up now rather than leave it unlinked.
+    await this.linkProductsFromBarcodes(inv.record.line_items);
     inv.record.status = "confirmed";
     inv.record.reviewed_at = new Date().toISOString();
 
