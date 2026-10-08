@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20261004a">
+<link rel="stylesheet" href="style.css?v=20261008a">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -21,6 +21,7 @@
       <div class="nav-group-label">Sales &amp; Money</div>
       <button class="tab-btn" data-tab="sales"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-9M3 20h18"/></svg>Sales</button>
       <button class="tab-btn" data-tab="reports"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7zM9 12h6M9 16h6"/></svg>Reports</button>
+      <button class="tab-btn" data-tab="kpay"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v12H3zM3 11h18M7 15h4"/></svg>KPay Check</button>
       <button class="tab-btn active" data-tab="review"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>Invoices <span id="review-count" class="badge"></span></button>
     </div>
     <div class="nav-group">
@@ -61,6 +62,23 @@
 </header>
 
 <main id="app" class="hidden">
+  <section id="tab-kpay" class="tab-panel">
+    <div class="kpay-layout">
+      <h2 class="lookup-heading">KPay Check</h2>
+      <p class="kpay-intro">Checks KPay's monthly statements against Aronium: KPay's fees against the MDR rates, every KPay payment against an Aronium sale, wrong payment types, late keying and refunds. Files are read in your browser and not uploaded.</p>
+      <div class="kpay-inputs">
+        <label class="btn kpay-file"><input id="kpay-statements-input" type="file" accept=".xlsx" multiple hidden>1. Choose KPay statements (.xlsx)</label>
+        <span id="kpay-statements-names" class="kpay-filenames"></span>
+        <label class="btn kpay-file"><input id="kpay-settlement-input" type="file" accept=".xls,.xlsx" hidden>2. Daily settlement sheet (optional, MrITMoney.xls)</label>
+        <span id="kpay-settlement-name" class="kpay-filenames"></span>
+        <button id="kpay-run-btn" class="btn btn-primary" type="button">Run check</button>
+        <button id="kpay-download-btn" class="btn hidden" type="button">Download Excel report</button>
+      </div>
+      <div id="kpay-status" class="kpay-status"></div>
+      <div id="kpay-results"></div>
+    </div>
+  </section>
+
   <section id="tab-review" class="tab-panel active">
     <div class="review-layout">
       <div id="sidebar-wrap" class="sidebar-wrap">
@@ -359,20 +377,23 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20261004a"></script>
-<script src="drive.js?v=20261004a"></script>
-<script src="review.js?v=20261004a"></script>
-<script src="reports.js?v=20261004a"></script>
-<script src="sales.js?v=20261004a"></script>
-<script src="catalog.js?v=20261004a"></script>
-<script src="memory.js?v=20261004a"></script>
-<script src="powerbank.js?v=20261004a"></script>
-<script src="lookup.js?v=20261004a"></script>
-<script src="order.js?v=20261004a"></script>
-<script src="roster.js?v=20261004a"></script>
-<script src="social.js?v=20261004a"></script>
-<script src="app.js?v=20261004a"></script>
+<script src="config.js?v=20261008a"></script>
+<script src="drive.js?v=20261008a"></script>
+<script src="review.js?v=20261008a"></script>
+<script src="reports.js?v=20261008a"></script>
+<script src="sales.js?v=20261008a"></script>
+<script src="catalog.js?v=20261008a"></script>
+<script src="memory.js?v=20261008a"></script>
+<script src="powerbank.js?v=20261008a"></script>
+<script src="lookup.js?v=20261008a"></script>
+<script src="order.js?v=20261008a"></script>
+<script src="roster.js?v=20261008a"></script>
+<script src="kpay-core.js?v=20261008a"></script>
+<script src="kpay.js?v=20261008a"></script>
+<script src="social.js?v=20261008a"></script>
+<script src="app.js?v=20261008a"></script>
 </body>
 </html>

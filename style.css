@@ -963,3 +963,16 @@ main { padding: 28px 32px; }
 .roster-live-late { background: #fdeaea; border-color: #c62828; color: #7a1010; }
 .roster-live-wait, .roster-live-unknown { background: #f3f3f3; border-color: #888; color: #333; }
 .roster-live-time { float: right; opacity: 0.6; font-size: 0.8rem; }
+
+/* KPay Check tab */
+.kpay-layout { max-width: 1400px; }
+.kpay-intro { max-width: 70ch; color: var(--muted, #555); }
+.kpay-inputs { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+.kpay-file { cursor: pointer; }
+.kpay-filenames { font-size: 0.85rem; opacity: 0.75; max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpay-status { min-height: 1.4em; margin: 6px 0 14px; }
+.kpay-error { color: #c62828; font-weight: 600; }
+.kpay-table-wrap { overflow-x: auto; margin: 8px 0 14px; }
+.kpay-section { border: 1px solid #ddd; border-radius: 8px; margin: 10px 0; padding: 8px 12px; background: #fff; }
+.kpay-section > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.kpay-note { font-size: 0.9rem; opacity: 0.8; max-width: 90ch; }

@@ -143,6 +143,7 @@ const NAV_CRUMBS = {
   review: ["Sales & Money", "Invoices"],
   sales: ["Sales & Money", "Sales"],
   reports: ["Sales & Money", "Reports"],
+  kpay: ["Sales & Money", "KPay Check"],
   memory: ["Stock & Ordering", "Memory"],
   powerbank: ["Stock & Ordering", "Powerbank"],
   lookup: ["Stock & Ordering", "Lookup"],
@@ -166,6 +167,7 @@ function switchTab(name) {
   if (name === "lookup") loadLookupTab();
   if (name === "order") loadOrderTab();
   if (name === "roster") Roster.render();
+  if (name === "kpay") KPayCheck.render();
   if (name === "social") Social.render();
 }
 

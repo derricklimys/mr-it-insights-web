@@ -242,6 +242,19 @@ const Roster = {
     this.loaded = true;
   },
 
+  /** Names of everyone rostered at a given minute of a given day (saved leave and overrides applied).
+   * Used by the KPay Check tab to see who was on shift when a sale was keyed. */
+  onDutyNames(dateStr, minutes) {
+    const { shifts } = this.computeDay(dateStr);
+    const out = [];
+    for (const [person, sh] of Object.entries(shifts)) {
+      if (!["AM", "PM", "FULL", "COVER"].includes(sh.status) || !sh.hours) continue;
+      const [a, b] = sh.hours.split("-").map(rosterTimeToMin);
+      if (minutes >= a && minutes <= b) out.push(ROSTER_PLABEL[person] || person);
+    }
+    return out;
+  },
+
   /** Pulls the live shop-PC status (boot reported the moment Windows starts) and
    * folds it into shopHours, so today's opening shows here at once instead of
    * after the evening sync. The Worker's own clock stamps the times (Singapore
