@@ -6,6 +6,9 @@
 
 const KPayCheck = {
   statementFiles: [],
+  invoiceFiles: [],
+  invoiceTally: null,
+  charges: null,
   settlementFile: null,
   result: null,
   settlement: null,
@@ -18,6 +21,10 @@ const KPayCheck = {
     document.getElementById("kpay-statements-input").addEventListener("change", (e) => {
       this.statementFiles = [...e.target.files];
       document.getElementById("kpay-statements-names").textContent = this.statementFiles.map((f) => f.name).join(", ");
+    });
+    document.getElementById("kpay-invoices-input").addEventListener("change", (e) => {
+      this.invoiceFiles = [...e.target.files];
+      document.getElementById("kpay-invoices-names").textContent = this.invoiceFiles.map((f) => f.name).join(", ");
     });
     document.getElementById("kpay-settlement-input").addEventListener("change", (e) => {
       this.settlementFile = e.target.files[0] || null;
@@ -33,8 +40,34 @@ const KPayCheck = {
     el.classList.toggle("kpay-error", isError);
   },
 
+  /** One PDF -> its text as separate lines (every text item on its own line, like the invoice's cells). */
+  async pdfLines(file) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const lines = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const content = await (await pdf.getPage(p)).getTextContent();
+      for (const item of content.items) { const t = item.str.trim(); if (t) lines.push(t); }
+    }
+    return lines;
+  },
+
   async readWorkbook(file) {
-    return XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    // Some KPay exports declare a stale sheet size, which makes SheetJS drop every row below it.
+    // Work the real size out from the cells themselves.
+    for (const name of wb.SheetNames) {
+      const ws = wb.Sheets[name];
+      let maxR = 0, maxC = 0;
+      for (const key of Object.keys(ws)) {
+        if (key[0] === "!") continue;
+        const c = XLSX.utils.decode_cell(key);
+        if (c.r > maxR) maxR = c.r;
+        if (c.c > maxC) maxC = c.c;
+      }
+      ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } });
+    }
+    return wb;
   },
 
   async run() {
@@ -55,6 +88,16 @@ const KPayCheck = {
       const first = `${months[0]}-01`;
       const [ly, lm] = months[months.length - 1].split("-").map(Number);
       const last = new Date(Date.UTC(ly, lm, 1)).toISOString().slice(0, 10); // first day of the month after
+
+      this.charges = kpayMonthlyCharges(kpay);
+      this.invoiceTally = null;
+      if (this.invoiceFiles.length) {
+        this.setStatus("Reading KPay invoices…");
+        const invoices = [];
+        for (const f of this.invoiceFiles) invoices.push(kpayParseInvoice(await this.pdfLines(f)));
+        invoices.sort((a, b) => (a.daily[0] ? a.daily[0].settleDate : "").localeCompare(b.daily[0] ? b.daily[0].settleDate : ""));
+        this.invoiceTally = kpayInvoiceTally(invoices.filter((i) => i.daily.length), kpay);
+      }
 
       this.setStatus("Loading Aronium sales…");
       await Reports.ensureLoaded();
@@ -88,9 +131,18 @@ const KPayCheck = {
       this.result = kpayAnalyse(kpay, aron, refunds, onDuty);
 
       this.settlement = null;
-      if (this.settlementFile) {
+      let settlementFile = this.settlementFile;
+      if (!settlementFile) {
+        // No file chosen: use the copy the shop PC uploads to the Aronium folder on Drive, if there is one.
+        try {
+          const folderId = await Drive.findFolderAnywhere(CONFIG.ARONIUM_FOLDER);
+          const fileId = folderId && await Drive.findChild("MrITMoney.xls", folderId);
+          if (fileId) settlementFile = new File([await (await Drive.downloadBlob(fileId)).arrayBuffer()], "MrITMoney.xls");
+        } catch (e) { /* optional - carry on without it */ }
+      }
+      if (settlementFile) {
         this.setStatus("Checking the daily settlement sheet…");
-        this.settlement = this.checkSettlement(await this.readWorkbook(this.settlementFile), kpay, months, first, last);
+        this.settlement = this.checkSettlement(await this.readWorkbook(settlementFile), kpay, months, first, last);
       }
       this.setStatus(`Checked ${kpay.length} KPay transactions across ${months.join(", ")}.`);
       this.renderResults();
@@ -154,6 +206,16 @@ const KPayCheck = {
     out.push({ name: "Summary", headers: ["Month", "KPay txns", "KPay $", "KPay fees $", "Aronium payments", "Aronium $", "Gap (Aronium - KPay) $",
       "In KPay not Aronium (n)", "$", "In Aronium not KPay (n)", "$", "Same sale amount differs (n)", "Net $", "Wrong payment type (n)", "One swipe = several sales (n)", "One sale = several swipes (n)"],
       rows: r.summary.map((s) => [s.month, s.kpayN, m(s.kpayAmt), m(s.kpayFees), s.aronN, m(s.aronAmt), m(s.gap), s.onlyKn, m(s.onlyKamt), s.onlyAn, m(s.onlyAamt), s.diffN, m(s.diffNet), s.mistypedN, s.combinedN, s.splitN]) });
+    out.push({ name: "KPay monthly charges", headers: ["Month", "Txns", "Gross $", "KPay charges $", "Effective rate %", "You receive $"],
+      rows: (this.charges || []).map((c) => [c.month, c.n, m(c.gross), m(c.fee), c.gross ? (100 * c.fee / c.gross).toFixed(3) : "", m(c.gross - c.fee)]) });
+    if (this.invoiceTally) {
+      out.push({ name: "KPay invoices vs statements", headers: ["Invoice period", "Txns", "Gross $", "Service fee $", "Other fee $", "GST $", "You receive $", "Effective rate %",
+        "Days tally with statements", "Days that differ", "Days with no statement", "Invoice adds up"],
+        rows: this.invoiceTally.map((t) => [t.period, t.total.count, m(t.total.gross), m(t.total.fee), m(t.total.other), m(t.total.gst), m(t.total.net), t.rate == null ? "" : t.rate.toFixed(3),
+          t.okDays, t.diffDays, t.noStatementDays, t.check.daysSumToTotal && t.check.netOk ? "yes" : "NO"]) });
+      const bad = this.invoiceTally.flatMap((t) => t.days.filter((d) => d.status !== "OK").map((d) => [t.period, d.txnDate, d.status, d.note]));
+      out.push({ name: "Invoice days that don't tally", headers: ["Invoice", "Transaction date", "Status", "What differs"], rows: bad });
+    }
     out.push({ name: "Fee check", headers: ["KPay type", "Txns", "Amount $", "KPay fee $", "Effective rate %", "MDR sheet rate %", "Fee at MDR rate $", "Txns charged differently", "Over (+) / under (-) charged $"],
       rows: r.feeRows.map((f) => [f.type, f.n, m(f.amount), m(f.fee), f.effectiveExact == null ? "" : f.effectiveExact.toFixed(3), f.rate == null ? "not on MDR sheet" : f.rate, f.atRate == null ? "" : m(f.atRate), f.wrongN == null ? "n/a" : f.wrongN, f.over == null ? "" : m(f.over)]) });
     out.push({ name: "In Aronium not KPay", headers: ["Aronium time", "Sale no.", "Keyed as", "Amount $"],
@@ -193,7 +255,7 @@ const KPayCheck = {
     this.lastSections = secs;
 
     const el = document.getElementById("kpay-results");
-    const open = new Set(["Summary", "Fee check", "In Aronium not KPay", "In KPay not Aronium"]);
+    const open = new Set(["Summary", "KPay monthly charges", "KPay invoices vs statements", "Invoice days that don't tally", "Fee check", "In Aronium not KPay", "In KPay not Aronium"]);
     const html = [];
     html.push(`<h3>Gap between Aronium and KPay</h3>` + this.table(secs[0].headers, secs[0].rows));
     for (const s of secs.slice(1)) {

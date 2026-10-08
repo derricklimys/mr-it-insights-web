@@ -263,3 +263,88 @@ function kpaySettlementCheck(sheetDays, aronDaily, kpayDaily) {
 }
 
 if (typeof module !== "undefined") module.exports = { kpayParseStatement, kpayAnalyse, kpaySettlementCheck, kpayNaive, kpayApplyRefunds };
+
+// ---------------------------------------------------------------------------------------------
+// KPay monthly tax invoices (PDF text -> numbers) and the tally against the transaction statements
+// ---------------------------------------------------------------------------------------------
+const KPAY_INV_DATE = /^\d{2} [A-Za-z]{3} \d{4}$/;
+const kpayNum = (s) => parseFloat(String(s).replace(/,/g, ""));
+const kpayInvDate = (s) => {
+  const [d, mon, y] = s.split(" ");
+  const m = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(mon);
+  return `${y}-${String(m + 1).padStart(2, "0")}-${d.padStart(2, "0")}`;
+};
+
+/** Text lines of one KPay "Monthly Tax Invoice" -> {period, daily:[...], total:{...}} */
+function kpayParseInvoice(lines) {
+  lines = lines.map((l) => String(l).trim()).filter(Boolean);
+  const out = { period: "", daily: [], total: null };
+  const p = lines.findIndex((l) => l.startsWith("Settlement Period"));
+  if (p >= 0) out.period = lines.slice(p + 1, p + 3).find((l) => /^[A-Za-z]{3} \d{4}$/.test(l)) || "";
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.startsWith("Total for")) {
+      const n = lines.slice(i + 1, i + 7).map(kpayNum);
+      out.period = out.period || l.replace("Total for", "").trim();
+      out.total = { count: n[0], gross: n[1], fee: -n[2], other: n[3], gst: n[4], net: n[5] };
+      break;
+    }
+    if (KPAY_INV_DATE.test(l) && KPAY_INV_DATE.test(lines[i + 1] || "")) {
+      const [c, g, f, o, t] = lines.slice(i + 2, i + 7).map(kpayNum);
+      out.daily.push({ txnDate: kpayInvDate(l), settleDate: kpayInvDate(lines[i + 1]), count: c, gross: g, fee: -f, other: o, gst: t });
+      i += 6;
+    }
+  }
+  return out;
+}
+
+/** Each invoice day against the KPay statement transactions for that day. */
+function kpayInvoiceTally(invoices, kpayRows) {
+  const byDay = {};
+  for (const k of kpayRows) {
+    const d = (byDay[k.date] = byDay[k.date] || { n: 0, gross: 0, fee: 0 });
+    d.n++; d.gross += k.amount; d.fee += k.fee;
+  }
+  const have = new Set(Object.keys(byDay));
+  return invoices.map((inv) => {
+    const sum = (key) => inv.daily.reduce((s, d) => s + d[key], 0);
+    const days = inv.daily.map((d) => {
+      const s = byDay[d.txnDate];
+      let status = "OK", note = "";
+      if (!s) { status = "no statement"; note = "no KPay statement uploaded for this day"; }
+      else {
+        const parts = [];
+        if (s.n !== d.count) parts.push(`count ${d.count} vs statement ${s.n}`);
+        if (Math.abs(s.gross - d.gross) > 0.005) parts.push(`gross ${d.gross.toFixed(2)} vs statement ${s.gross.toFixed(2)}`);
+        if (Math.abs(s.fee - d.fee) > 0.005) parts.push(`fee ${d.fee.toFixed(2)} vs statement ${s.fee.toFixed(2)}`);
+        if (parts.length) { status = "DIFFERS"; note = parts.join("; "); }
+      }
+      return { ...d, status, note };
+    });
+    const t = inv.total || {};
+    const check = {
+      daysSumToTotal: !!inv.total && Math.abs(sum("gross") - t.gross) < 0.01 && Math.abs(sum("fee") - t.fee) < 0.01 && sum("count") === t.count,
+      netOk: !!inv.total && Math.abs(t.gross - t.fee - t.other - t.gst - t.net) < 0.01,
+    };
+    return {
+      period: inv.period, total: inv.total, days, check,
+      okDays: days.filter((d) => d.status === "OK").length, diffDays: days.filter((d) => d.status === "DIFFERS").length,
+      noStatementDays: days.filter((d) => d.status === "no statement").length,
+      rate: t.gross ? (100 * t.fee) / t.gross : null,
+    };
+  });
+}
+
+/** Charges per calendar month straight from the statements: gross, fees by payment type, net. */
+function kpayMonthlyCharges(kpayRows) {
+  const months = {};
+  for (const k of kpayRows) {
+    const m = (months[kpayMonth(k.time)] = months[kpayMonth(k.time)] || { n: 0, gross: 0, fee: 0, byType: {} });
+    m.n++; m.gross += k.amount; m.fee += k.fee;
+    const t = (m.byType[k.type] = m.byType[k.type] || { n: 0, gross: 0, fee: 0 });
+    t.n++; t.gross += k.amount; t.fee += k.fee;
+  }
+  return Object.keys(months).sort().map((m) => ({ month: m, ...months[m] }));
+}
+
+if (typeof module !== "undefined") Object.assign(module.exports, { kpayParseInvoice, kpayInvoiceTally, kpayMonthlyCharges });

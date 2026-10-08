@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20261008a">
+<link rel="stylesheet" href="style.css?v=20261008b">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -69,6 +69,8 @@
       <div class="kpay-inputs">
         <label class="btn kpay-file"><input id="kpay-statements-input" type="file" accept=".xlsx" multiple hidden>1. Choose KPay statements (.xlsx)</label>
         <span id="kpay-statements-names" class="kpay-filenames"></span>
+        <label class="btn kpay-file"><input id="kpay-invoices-input" type="file" accept=".pdf" multiple hidden>1b. KPay monthly tax invoices (.pdf, optional)</label>
+        <span id="kpay-invoices-names" class="kpay-filenames"></span>
         <label class="btn kpay-file"><input id="kpay-settlement-input" type="file" accept=".xls,.xlsx" hidden>2. Daily settlement sheet (optional, MrITMoney.xls)</label>
         <span id="kpay-settlement-name" class="kpay-filenames"></span>
         <button id="kpay-run-btn" class="btn btn-primary" type="button">Run check</button>
@@ -377,23 +379,24 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20261008a"></script>
-<script src="drive.js?v=20261008a"></script>
-<script src="review.js?v=20261008a"></script>
-<script src="reports.js?v=20261008a"></script>
-<script src="sales.js?v=20261008a"></script>
-<script src="catalog.js?v=20261008a"></script>
-<script src="memory.js?v=20261008a"></script>
-<script src="powerbank.js?v=20261008a"></script>
-<script src="lookup.js?v=20261008a"></script>
-<script src="order.js?v=20261008a"></script>
-<script src="roster.js?v=20261008a"></script>
-<script src="kpay-core.js?v=20261008a"></script>
-<script src="kpay.js?v=20261008a"></script>
-<script src="social.js?v=20261008a"></script>
-<script src="app.js?v=20261008a"></script>
+<script src="config.js?v=20261008b"></script>
+<script src="drive.js?v=20261008b"></script>
+<script src="review.js?v=20261008b"></script>
+<script src="reports.js?v=20261008b"></script>
+<script src="sales.js?v=20261008b"></script>
+<script src="catalog.js?v=20261008b"></script>
+<script src="memory.js?v=20261008b"></script>
+<script src="powerbank.js?v=20261008b"></script>
+<script src="lookup.js?v=20261008b"></script>
+<script src="order.js?v=20261008b"></script>
+<script src="roster.js?v=20261008b"></script>
+<script src="kpay-core.js?v=20261008b"></script>
+<script src="kpay.js?v=20261008b"></script>
+<script src="social.js?v=20261008b"></script>
+<script src="app.js?v=20261008b"></script>
 </body>
 </html>
