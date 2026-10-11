@@ -271,7 +271,7 @@ const Roster = {
     if (live) {
       for (const [d, v] of Object.entries(live.days || {})) {
         const entry = { ...(this.shopHours[d] || {}) };
-        if (v.boot) entry.boot = v.boot;
+        if (v.boot || v.first_seen) entry.boot = v.boot || v.first_seen; // first check-in stands in if the boot report was lost
         if (v.shutdown) { entry.shutdown = v.shutdown; entry.shutdown_type = "clean"; }
         else if (d < live.today && v.last_seen) { entry.shutdown = v.last_seen; entry.shutdown_type = "last-seen"; }
         this.shopHours[d] = entry;
@@ -292,7 +292,8 @@ const Roster = {
     }
     const today = live.today;
     const nowMin = rosterTimeToMin(live.now.slice(11, 16));
-    const day = (live.days || {})[today] || {};
+    const day = { ...((live.days || {})[today] || {}) };
+    if (!day.boot && day.first_seen) day.boot = day.first_seen; // boot report lost: use the first check-in
     const { workers } = this.daySummary(today);
     let opener = null, openStart = null;
     for (const w of workers) {
