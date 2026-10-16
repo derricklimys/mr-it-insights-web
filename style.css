@@ -976,3 +976,6 @@ main { padding: 28px 32px; }
 .kpay-section { border: 1px solid #ddd; border-radius: 8px; margin: 10px 0; padding: 8px 12px; background: #fff; }
 .kpay-section > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
 .kpay-note { font-size: 0.9rem; opacity: 0.8; max-width: 90ch; }
+
+.order-bell { text-decoration: none; padding: 3px 10px; border-radius: 999px; background: #9e9e9e; color: #fff; font-size: 13px; font-weight: 600; }
+.order-bell.has-orders { background: #c62828; }

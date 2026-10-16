@@ -100,6 +100,8 @@ async function onSignedIn() {
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("sync-area").classList.remove("hidden");
 
+  startOrderBell();
+
   try {
     await Review.load();
   } catch (e) {
@@ -289,4 +291,25 @@ async function loadCurrentReport() {
     document.getElementById("report-status").textContent = "";
     setStatus(e.message, true);
   }
+}
+
+
+/** Small bell in the top bar: how many web orders are waiting (on-hold + processing). Checked every minute. */
+function startOrderBell() {
+  const bell = document.getElementById("order-bell");
+  const n = document.getElementById("order-bell-n");
+  const url = CONFIG.SHOP_STATUS_URL.replace("/status", "/orders/open");
+  async function check() {
+    try {
+      const r = await fetch(url, { headers: { Authorization: "Bearer " + Drive.accessToken } });
+      if (!r.ok) return;
+      const o = await r.json();
+      n.textContent = o.open;
+      bell.classList.toggle("has-orders", o.open > 0);
+      bell.title = o.open ? o.onHold + " on hold, " + o.processing + " processing. Newest: #" + o.newest.number + " $" + o.newest.total : "No orders waiting";
+      bell.classList.remove("hidden");
+    } catch (e) { /* offline: keep the last number */ }
+  }
+  check();
+  setInterval(check, 60000);
 }
