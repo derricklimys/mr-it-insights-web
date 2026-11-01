@@ -979,3 +979,21 @@ main { padding: 28px 32px; }
 
 .order-bell { text-decoration: none; padding: 3px 10px; border-radius: 999px; background: #9e9e9e; color: #fff; font-size: 13px; font-weight: 600; }
 .order-bell.has-orders { background: #c62828; }
+
+/* Powerbank filters */
+.pb-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px}
+.pb-filter-label{font-weight:700;color:#475569;margin-left:8px}.pb-filter-label:first-child{margin-left:0}
+.pb-chip{border:1.5px solid #CBD5E1;background:#fff;color:#0E1B2B;border-radius:999px;padding:6px 14px;font-size:14px;cursor:pointer}
+.pb-chip.active{background:#0A5FA8;border-color:#0A5FA8;color:#fff;font-weight:700}
+.ccc-badge{display:inline-block;background:#DCFCE7;color:#166534;font-weight:800;font-size:11px;padding:2px 7px;border-radius:999px;vertical-align:middle}
+
+/* Shop TV QR scans panel */
+.topbar-right{position:relative}
+.tv-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:50;width:min(360px,92vw);background:#fff;color:#0E1B2B;border:1px solid #CBD5E1;border-radius:14px;box-shadow:0 12px 32px rgba(14,27,43,.18);padding:16px 18px}
+.tv-panel h3{margin:0 0 8px;font-size:16px}
+.tv-panel p{margin:6px 0;font-size:14px}
+.tv-panel ul{margin:8px 0 0;padding:0;list-style:none;font-size:13px;color:#44546A;max-height:200px;overflow:auto}
+.tv-panel li{padding:3px 0;border-top:1px solid #EEF2F7}
+.tv-bars{display:flex;align-items:flex-end;gap:3px;height:34px;margin:8px 0}
+.tv-bar{flex:1;background:#0A5FA8;border-radius:2px 2px 0 0;min-width:4px}
+.tv-status{font-weight:700;margin-top:10px!important}

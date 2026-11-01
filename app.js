@@ -101,6 +101,7 @@ async function onSignedIn() {
   document.getElementById("sync-area").classList.remove("hidden");
 
   startOrderBell();
+  startTvChip();
 
   try {
     await Review.load();
@@ -308,8 +309,55 @@ function startOrderBell() {
       bell.classList.toggle("has-orders", o.open > 0);
       bell.title = o.open ? o.onHold + " on hold, " + o.processing + " processing. Newest: #" + o.newest.number + " $" + o.newest.total : "No orders waiting";
       bell.classList.remove("hidden");
+      const eb = document.getElementById("enquiry-bell");
+      if (eb && o.enquiries !== null && o.enquiries !== undefined) {
+        document.getElementById("enquiry-bell-n").textContent = o.enquiries;
+        eb.classList.toggle("has-orders", o.enquiries > 0);
+        eb.title = o.enquiries ? o.enquiries + " pre-order enquiries waiting (customers who tapped Check availability)" : "No pre-order enquiries waiting";
+        eb.classList.remove("hidden");
+      }
     } catch (e) { /* offline: keep the last number */ }
   }
   check();
   setInterval(check, 60000);
+}
+
+
+/** Shop TV chip: how many people scanned the QR code on the shop TV today, with a small panel (week, month, last scans, TV status). */
+function startTvChip() {
+  const chip = document.getElementById("tv-chip");
+  const num = document.getElementById("tv-chip-n");
+  const panel = document.getElementById("tv-panel");
+  if (!chip) return;
+  const url = CONFIG.SHOP_STATUS_URL.replace("/status", "/tv/scans");
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  let last = null;
+  function render() {
+    if (!last) return;
+    const s = last.scans, tv = last.tv;
+    const tvLine = !tv ? "" : tv.state === "current" ? "TV prices: up to date (v" + tv.version + ")"
+      : tv.state === "behind" ? "TV prices: BEHIND (TV v" + tv.tv_version + ", website v" + tv.version + ")" : "TV has not reported yet";
+    const max = Math.max(1, ...s.days.map((d) => d.count));
+    const bars = s.days.map((d) => '<span class="tv-bar" title="' + esc(d.date + ": " + d.count) + '" style="height:' + (4 + Math.round(28 * d.count / max)) + 'px"></span>').join("");
+    panel.innerHTML = '<h3>Shop TV QR scans</h3><p><strong>' + s.today + '</strong> today &middot; <strong>' + s.last7 + '</strong> in 7 days &middot; <strong>' + s.last30 + '</strong> in 30 days &middot; ' + s.total + ' total</p>'
+      + '<div class="tv-bars" aria-hidden="true">' + bars + '</div>'
+      + (s.recent.length ? '<ul>' + s.recent.map((r) => "<li>" + esc(r.time) + " &middot; " + esc(r.device) + "</li>").join("") + "</ul>" : "<p>No scans yet.</p>")
+      + (tvLine ? '<p class="tv-status">' + esc(tvLine) + "</p>" : "");
+  }
+  async function check() {
+    try {
+      const r = await fetch(url, { headers: { Authorization: "Bearer " + Drive.accessToken } });
+      if (!r.ok) return;
+      last = await r.json();
+      num.textContent = last.scans.today;
+      chip.title = last.scans.today + " scan(s) today, " + last.scans.last7 + " this week";
+      chip.classList.toggle("has-orders", last.scans.today > 0);
+      chip.classList.remove("hidden");
+      render();
+    } catch (e) { /* offline: keep the last numbers */ }
+  }
+  chip.addEventListener("click", (e) => { e.preventDefault(); panel.classList.toggle("hidden"); });
+  document.addEventListener("click", (e) => { if (!panel.contains(e.target) && !chip.contains(e.target)) panel.classList.add("hidden"); });
+  check();
+  setInterval(check, 300000);
 }

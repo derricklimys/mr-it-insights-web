@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr IT Ops</title>
-<link rel="stylesheet" href="style.css?v=20261017a">
+<link rel="stylesheet" href="style.css?v=20261101a">
 <script src="https://accounts.google.com/gsi/client" defer></script>
 </head>
 <body>
@@ -51,6 +51,9 @@
   </div>
   <div class="topbar-right">
     <a id="order-bell" class="order-bell hidden" href="https://mrit.com.sg/wp-admin/admin.php?page=wc-orders" target="_blank" rel="noopener" title="Orders waiting">&#128276; <span id="order-bell-n">0</span></a>
+    <a id="enquiry-bell" class="order-bell hidden" href="https://mrit.com.sg/wp-admin/edit.php?post_type=mrit_enquiry" target="_blank" rel="noopener" title="Pre-order enquiries waiting">&#9993; <span id="enquiry-bell-n">0</span></a>
+    <a id="tv-chip" class="order-bell hidden" href="#" title="Shop TV QR code scans">&#128250; <span id="tv-chip-n">0</span></a>
+    <div id="tv-panel" class="tv-panel hidden" role="dialog" aria-label="Shop TV QR scans"></div>
     <div id="sync-area" class="sync-area hidden">
       <button id="sync-btn" class="btn" title="Re-fetch the latest Aronium data and invoice list">Sync</button>
       <span id="sync-status" class="sync-status"></span>
@@ -384,20 +387,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- ?v= busts browser caching of these files on every deploy - bump it whenever
      any of them changes, otherwise a hard refresh is needed to see updates. -->
-<script src="config.js?v=20261017a"></script>
-<script src="drive.js?v=20261017a"></script>
-<script src="review.js?v=20261017a"></script>
-<script src="reports.js?v=20261017a"></script>
-<script src="sales.js?v=20261017a"></script>
-<script src="catalog.js?v=20261017a"></script>
-<script src="memory.js?v=20261017a"></script>
-<script src="powerbank.js?v=20261017a"></script>
-<script src="lookup.js?v=20261017a"></script>
-<script src="order.js?v=20261017a"></script>
-<script src="roster.js?v=20261017a"></script>
-<script src="kpay-core.js?v=20261017a"></script>
-<script src="kpay.js?v=20261017a"></script>
-<script src="social.js?v=20261017a"></script>
-<script src="app.js?v=20261017a"></script>
+<script src="config.js?v=20261023a"></script>
+<script src="drive.js?v=20261023a"></script>
+<script src="review.js?v=20261023a"></script>
+<script src="reports.js?v=20261023a"></script>
+<script src="sales.js?v=20261023a"></script>
+<script src="catalog.js?v=20261023a"></script>
+<script src="memory.js?v=20261023a"></script>
+<script src="powerbank.js?v=20261024a"></script>
+<script src="lookup.js?v=20261023a"></script>
+<script src="order.js?v=20261023a"></script>
+<script src="roster.js?v=20261023a"></script>
+<script src="kpay-core.js?v=20261023a"></script>
+<script src="kpay.js?v=20261023a"></script>
+<script src="social.js?v=20261023a"></script>
+<script src="app.js?v=20261101a"></script>
 </body>
 </html>
