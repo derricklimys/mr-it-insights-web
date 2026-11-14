@@ -318,12 +318,14 @@ const Powerbank = {
         <div><span class="stat-label">Reserve stock</span><span class="stat-value">${p.reserveQty}</span></div>
         <div><span class="stat-label">Sold, last 30 days</span><span class="stat-value">${p.last30Qty}</span></div>
         <div><span class="stat-label">Days of stock left</span><span class="stat-value">${p.daysOfStockLeft != null ? Math.round(p.daysOfStockLeft) : "—"}</span></div>
-        <div><span class="stat-label">Current price</span><span class="stat-value">${money(p.currentPrice)}</span></div>
-        <div><span class="stat-label">Margin</span><span class="stat-value">${p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—"}</span></div>
+      </div>
+      <div class="memory-stats memory-stats-row2">
         <div>
           <span class="stat-label">SRP</span>
           <span class="stat-value">${lastPricelist && lastPricelist.srp != null ? money(lastPricelist.srp) : "—"}</span>
         </div>
+        <div><span class="stat-label">Current price</span><span class="stat-value">${money(p.currentPrice)}</span></div>
+        <div><span class="stat-label">Margin</span><span class="stat-value">${p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—"}</span></div>
         <div>
           <span class="stat-label">Cost (latest invoice)</span>
           <span class="stat-value">${lastInvoice ? money(lastInvoice.cost) : "—"}</span>

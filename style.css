@@ -997,3 +997,8 @@ main { padding: 28px 32px; }
 .tv-bars{display:flex;align-items:flex-end;gap:3px;height:34px;margin:8px 0}
 .tv-bar{flex:1;background:#0A5FA8;border-radius:2px 2px 0 0;min-width:4px}
 .tv-status{font-weight:700;margin-top:10px!important}
+
+.memory-stats-row2 { margin-top: -6px; }
+.reserve-editor { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+.reserve-editor input { padding: 4px 6px; }
+.reserve-editor button { padding: 4px 12px; cursor: pointer; }
