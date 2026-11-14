@@ -25,6 +25,13 @@
 // PN-less fallback.
 const MAH_RE = /(\d[\d,\s]*\d|\d)\s*mAh/i;
 
+// Power banks Derrick says are CCC certified (barcode = 023942 + the Verbatim model number VM-xxxxxx).
+// To mark another one as CCC, add its barcode here. The website's "CCC certified" filter is set separately.
+const CCC_BARCODES = new Set([
+  "023942322535", "023942322528", "023942322511", "023942322733",
+  "023942322726", "023942322801", "023942322818",
+]);
+
 function verbatimFamilyPrefix(pn) {
   return pn.slice(0, -1);
 }
@@ -50,6 +57,8 @@ const Powerbank = {
   loaded: false,
   products: [],
   selectedId: null,
+  filterCcc: false,
+  filterCap: null,
 
   async ensureLoaded() {
     if (this.loaded) return;
@@ -58,7 +67,7 @@ const Powerbank = {
 
     statusEl.textContent = "Loading Verbatim pricelist and reserve stock...";
     const verbatimMap = (await this._loadDriveJson("verbatim_pn_map.json")) || {};
-    const reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
+    const reserveStock = (await Reserve.loadMerged()) || {};
     // Photos are a separate file from verbatimMap on purpose - verbatim_pn_map.json
     // gets wholesale-overwritten on every pricelist refresh, which would wipe out
     // photo links if they lived in the same file.
@@ -162,10 +171,11 @@ const Powerbank = {
         invoiceCosts,
         monthly, aroniumStock, reserveQty, combinedStock,
         reserveUpdatedAt: reserveEntry ? reserveEntry.updated_at : null,
+        reserveBarcode: reserveEntry ? barcodes.find((bc) => reserveStock[bc] === reserveEntry) : (barcodes[0] || null),
         last30Qty: last30.qty, last30Revenue: last30.revenue, daysOfStockLeft,
         signal: signal.type, signalReason: signal.reason, marginPct: signal.marginPct,
         costSource: signal.costSource, costRising: signal.costRising,
-        groupKey, capacity: capacityFromMah(r.Name),
+        groupKey, capacity: capacityFromMah(r.Name), ccc: barcodes.some((bc) => CCC_BARCODES.has(bc)),
         color: verbatimEntry ? cleanVerbatimColor(verbatimEntry.color) : null,
       };
     });
@@ -192,8 +202,23 @@ const Powerbank = {
       el.innerHTML = `<p class="empty-state">No Powerbank-group products found in Aronium.</p>`;
       return;
     }
+    // Filter bar: CCC only, and by capacity (5000mAh, 10000mAh ...).
+    const caps = [...new Set(this.products.map((p) => p.capacity).filter(Boolean))].sort((a, b) => mahSortKey(a) - mahSortKey(b));
+    const chip = (label, on, attr) => `<button type="button" class="pb-chip${on ? " active" : ""}" ${attr}>${escapeHtml(label)}</button>`;
+    const bar = `<div class="pb-filters">
+      <span class="pb-filter-label">Certified:</span>
+      ${chip("All", !this.filterCcc, 'data-ccc="0"')}${chip("CCC only", this.filterCcc, 'data-ccc="1"')}
+      <span class="pb-filter-label">Capacity:</span>
+      ${chip("All", !this.filterCap, 'data-cap=""')}${caps.map((c) => chip(c, this.filterCap === c, `data-cap="${escapeHtml(c)}"`)).join("")}
+    </div>`;
+    const shown = this.products.filter((p) => (!this.filterCcc || p.ccc) && (!this.filterCap || p.capacity === this.filterCap));
+    if (!shown.length) {
+      el.innerHTML = bar + `<p class="empty-state">No power banks match this filter.</p>`;
+      this._bindFilters(el);
+      return;
+    }
     const groups = new Map();
-    for (const p of this.products) {
+    for (const p of shown) {
       if (!groups.has(p.groupKey)) groups.set(p.groupKey, []);
       groups.get(p.groupKey).push(p);
     }
@@ -212,7 +237,7 @@ const Powerbank = {
     groupList.sort((a, b) =>
       (b.isVerbatim - a.isVerbatim) || (b.worstRank - a.worstRank) || a.label.localeCompare(b.label));
 
-    el.innerHTML = groupList.map((g, i) => {
+    el.innerHTML = bar + groupList.map((g, i) => {
       // One label before the first Verbatim group and one right where it
       // switches to old stock - makes the split visible, not just implicit
       // in the ordering.
@@ -233,7 +258,7 @@ const Powerbank = {
           g.items.map((p) => [
             p.productId,
             p.photoThumbUrl ? `<img class="product-thumb" src="${p.photoThumbUrl}" alt="">` : `<span class="product-thumb-placeholder">—</span>`,
-            escapeHtml(p.name),
+            escapeHtml(p.name) + (p.ccc ? ' <span class="ccc-badge">CCC</span>' : ''),
             escapeHtml(p.capacity || "—"),
             escapeHtml(p.color || "—"),
             escapeHtml(p.barcodes[0] || "—"),
@@ -250,6 +275,18 @@ const Powerbank = {
     el.querySelectorAll("tr[data-id]").forEach((row) => {
       row.addEventListener("click", () => this.select(Number(row.dataset.id)));
     });
+    this._bindFilters(el);
+  },
+
+  _bindFilters(el) {
+    el.querySelectorAll("button[data-ccc]").forEach((b) => b.addEventListener("click", () => {
+      this.filterCcc = b.dataset.ccc === "1";
+      this.renderList();
+    }));
+    el.querySelectorAll("button[data-cap]").forEach((b) => b.addEventListener("click", () => {
+      this.filterCap = b.dataset.cap || null;
+      this.renderList();
+    }));
   },
 
   select(productId) {
@@ -284,6 +321,10 @@ const Powerbank = {
         <div><span class="stat-label">Current price</span><span class="stat-value">${money(p.currentPrice)}</span></div>
         <div><span class="stat-label">Margin</span><span class="stat-value">${p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—"}</span></div>
         <div>
+          <span class="stat-label">SRP</span>
+          <span class="stat-value">${lastPricelist && lastPricelist.srp != null ? money(lastPricelist.srp) : "—"}</span>
+        </div>
+        <div>
           <span class="stat-label">Cost (latest invoice)</span>
           <span class="stat-value">${lastInvoice ? money(lastInvoice.cost) : "—"}</span>
           ${lastInvoice ? `<span class="stock-breakdown">${escapeHtml(lastInvoice.date)} &middot; ${escapeHtml(lastInvoice.supplier)}</span>` : ""}
@@ -293,15 +334,20 @@ const Powerbank = {
           <span class="stat-value">${lastPricelist && lastPricelist.dealer_price != null ? money(lastPricelist.dealer_price) : "—"}</span>
           ${lastPricelist ? `<span class="stock-breakdown">Verbatim pricelist, current</span>` : ""}
         </div>
-        <div>
-          <span class="stat-label">SRP</span>
-          <span class="stat-value">${lastPricelist && lastPricelist.srp != null ? money(lastPricelist.srp) : "—"}</span>
-        </div>
       </div>
+      ${p.reserveBarcode ? Reserve.editorHtml("pb", p.reserveQty, p.reserveUpdatedAt) : ""}
       <p class="cost-source-note">${Catalog.costSourceNote(p)}</p>
       <canvas id="powerbank-chart" width="900" height="320"></canvas>
     `;
     Catalog.drawChart(document.getElementById("powerbank-chart"), p);
+    if (p.reserveBarcode) {
+      Reserve.bindEditor("pb", p.reserveBarcode, p.name, (entry) => {
+        p.reserveQty = entry.quantity;
+        p.reserveUpdatedAt = entry.updated_at;
+        p.combinedStock = p.aroniumStock + p.reserveQty;
+        this.select(p.productId);
+      });
+    }
     if (p.photoUrl) {
       document.getElementById("powerbank-photo-large").addEventListener("click", () => Catalog.openPhotoLightbox(p.photoUrl));
     }

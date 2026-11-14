@@ -21,7 +21,7 @@ const Lookup = {
       this.latestDataDate = row ? row.d : null;
     }
     if (!this.reserveStock) {
-      this.reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
+      this.reserveStock = (await Reserve.loadMerged()) || {};
     }
   },
 
@@ -440,6 +440,8 @@ const Lookup = {
 
     const shopStock = this.stockFor(productId);
     const reserveQty = this.reserveFor(p.groupName, p.barcodes);
+    const bcList = (p.barcodes || "").split(",").map((b) => b.trim()).filter(Boolean);
+    const reserveBc = bcList.find((bc) => this.reserveStock[bc]) || bcList[0] || null;
     const stock = reserveQty != null ? shopStock + reserveQty : shopStock;
     const summary = this.salesSummary(productId);
     const history = this.salesHistory(productId);
@@ -455,6 +457,7 @@ const Lookup = {
         <div><span class="stat-label">Last Sale</span><span class="stat-value">${summary.lastSale || "Never"}</span></div>
         <div><span class="stat-label">Total Sold</span><span class="stat-value">${summary.totalQty}</span></div>
       </div>
+      ${reserveQty != null ? Reserve.editorHtml("lk", reserveQty, (this.reserveStock[reserveBc] || {}).updated_at) : ""}
       <h3>Sales History</h3>
       ${history.length ? tableHtml(
         ["Date", "Receipt #", "Qty", "Unit Price", "Total"],
@@ -487,6 +490,12 @@ const Lookup = {
         Review.select(invoiceId);
       });
     });
+    if (reserveQty != null && reserveBc) {
+      Reserve.bindEditor("lk", reserveBc, p.name, (entry) => {
+        this.reserveStock[reserveBc] = entry;
+        this.showDetail(productId);
+      });
+    }
     modal.classList.remove("hidden");
   },
 

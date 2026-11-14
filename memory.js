@@ -60,7 +60,7 @@ const Memory = {
 
     statusEl.textContent = "Loading price history and reserve stock...";
     const priceHistory = (await this._loadDriveJson("sandisk_price_history.json")) || {};
-    const reserveStock = (await this._loadDriveJson("reserve_stock.json")) || {};
+    const reserveStock = (await Reserve.loadMerged()) || {};
     // Shared with Powerbank - a separate file from priceHistory on purpose,
     // since that file gets wholesale-overwritten on every pricelist refresh.
     const productPhotos = (await this._loadDriveJson("product_photos.json")) || {};
@@ -168,6 +168,7 @@ const Memory = {
         invoiceCosts,
         monthly, aroniumStock, reserveQty, combinedStock,
         reserveUpdatedAt: reserveEntry ? reserveEntry.updated_at : null,
+        reserveBarcode: reserveEntry ? barcodes.find((bc) => reserveStock[bc] === reserveEntry) : (barcodes[0] || null),
         last30Qty: last30.qty, last30Revenue: last30.revenue,
         last60Qty: last60.qty, last60Revenue: last60.revenue,
         last90Qty: last90.qty, last90Revenue: last90.revenue,
@@ -296,6 +297,10 @@ const Memory = {
         <div><span class="stat-label">Current price</span><span class="stat-value">${money(p.currentPrice)}</span></div>
         <div><span class="stat-label">Margin</span><span class="stat-value">${p.marginPct != null ? p.marginPct.toFixed(0) + "%" : "—"}</span></div>
         <div>
+          <span class="stat-label">RCP (SRP)</span>
+          <span class="stat-value">${lastPricelist && lastPricelist.srp != null ? money(lastPricelist.srp) : "—"}</span>
+        </div>
+        <div>
           <span class="stat-label">Cost (latest invoice)</span>
           <span class="stat-value">${lastInvoice ? money(lastInvoice.cost) : "—"}</span>
           ${lastInvoice ? `<span class="stock-breakdown">${escapeHtml(lastInvoice.date)} &middot; ${escapeHtml(lastInvoice.supplier)}</span>` : ""}
@@ -305,15 +310,20 @@ const Memory = {
           <span class="stat-value">${lastPricelist && lastPricelist.dealer_price != null ? money(lastPricelist.dealer_price) : "—"}</span>
           ${lastPricelist ? `<span class="stock-breakdown">pricelist ${escapeHtml(lastPricelist.date)}</span>` : ""}
         </div>
-        <div>
-          <span class="stat-label">RCP (SRP)</span>
-          <span class="stat-value">${lastPricelist && lastPricelist.srp != null ? money(lastPricelist.srp) : "—"}</span>
-        </div>
       </div>
+      ${p.reserveBarcode ? Reserve.editorHtml("mem", p.reserveQty, p.reserveUpdatedAt) : ""}
       <p class="cost-source-note">${Catalog.costSourceNote(p)}</p>
       <canvas id="memory-chart" width="900" height="320"></canvas>
     `;
     Catalog.drawChart(document.getElementById("memory-chart"), p);
+    if (p.reserveBarcode) {
+      Reserve.bindEditor("mem", p.reserveBarcode, p.name, (entry) => {
+        p.reserveQty = entry.quantity;
+        p.reserveUpdatedAt = entry.updated_at;
+        p.combinedStock = p.aroniumStock + p.reserveQty;
+        this.select(p.productId);
+      });
+    }
     if (p.photoUrl) {
       document.getElementById("memory-photo-large").addEventListener("click", () => Catalog.openPhotoLightbox(p.photoUrl));
     }
