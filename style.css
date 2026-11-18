@@ -1002,3 +1002,9 @@ main { padding: 28px 32px; }
 .reserve-editor { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
 .reserve-editor input { padding: 4px 6px; }
 .reserve-editor button { padding: 4px 12px; cursor: pointer; }
+
+/* Review tab: say why an invoice needs review */
+.inv-hint { display: block; font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+.review-summary { margin: 8px 0 12px; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); font-size: 13px; line-height: 1.45; }
+.review-summary.review-ok { background: var(--ok-soft); }
+.lines-table tr.needs-check { background: var(--warn-soft); box-shadow: inset 3px 0 0 var(--warn); }

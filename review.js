@@ -151,6 +151,7 @@ const Review = {
           <span class="inv-main">
             <span class="inv-supplier">${escapeHtml(supplier)}</span>
             <span class="inv-meta">${escapeHtml(meta)}</span>
+            ${r.status === "needs_review" ? `<span class="inv-hint">${escapeHtml(reviewHint(r))}</span>` : ""}
           </span>
         </button>`;
       })
@@ -183,6 +184,18 @@ const Review = {
     this._buildDetail(inv);
   },
 
+  /** The "what needs checking" box above the line items. */
+  _summaryHtml(r) {
+    if (r.status === "confirmed") return "";
+    const i = reviewIssues(r);
+    if (i.clean) {
+      return `<p class="review-summary review-ok">Nothing was flagged on this invoice: every line was read with good confidence, matched to a product and has a cost. Compare the lines with the scan on the right, then press <b>Save &amp; Mark Confirmed</b>.</p>`;
+    }
+    const list = i.parts.length ? `<b>To check:</b> ${i.parts.map(escapeHtml).join(" &middot; ")}. Highlighted rows are the ones to look at.` : "";
+    const note = i.note ? `<br><b>Note on this invoice:</b> ${escapeHtml(i.note)}` : "";
+    return `<p class="review-summary">${list}${note}</p>`;
+  },
+
   _buildDetail(inv) {
     const detail = document.getElementById("invoice-detail");
     const r = inv.record;
@@ -205,6 +218,7 @@ const Review = {
         <h2>${title}</h2>
         <span class="badge badge-${r.status}">${statusLabel(r.status)}</span>
       </div>
+      ${this._summaryHtml(r)}
       <div class="detail-split">
         <div class="lines-pane">
           <div class="lines-table-wrap">
@@ -228,8 +242,9 @@ const Review = {
     tbody.innerHTML = r.line_items
       .map((li, idx) => {
         const lowConf = (li.confidence ?? 0) < 0.85;
+        const missing = !li.matched_product_id || li.true_cost_incl_gst == null || Number(li.true_cost_incl_gst) === 0;
         return `
-        <tr class="${lowConf ? "low-confidence" : ""}" data-idx="${idx}">
+        <tr class="${lowConf ? "low-confidence" : ""} ${missing && r.status !== "confirmed" ? "needs-check" : ""}" data-idx="${idx}">
           <td>${escapeHtml(li.description)}</td>
           <td><input type="text" class="li-match" value="${escapeHtml(li.match_method || "")}"></td>
           <td><input type="text" class="li-product" value="${escapeHtml(li.matched_product_name || "")}"></td>
@@ -410,6 +425,34 @@ const Review = {
 };
 
 // Newest, least-processed captures surface first: nothing read yet, then
+
+/** What, if anything, needs a human look on an invoice that is not yet confirmed.
+ * "review" used to be shown with no reason, so invoices where nothing was
+ * flagged looked like a mystery. Counts lines read with low confidence,
+ * lines not matched to a product, lines with no cost, and shows the invoice note. */
+function reviewIssues(r) {
+  const lines = r.line_items || [];
+  const low = lines.filter((li) => (li.confidence ?? 0) < 0.85).length;
+  const unmatched = lines.filter((li) => !li.matched_product_id).length;
+  const noCost = lines.filter((li) => li.true_cost_incl_gst == null || Number(li.true_cost_incl_gst) === 0).length;
+  const note = r.note || r.invoice_note || "";
+  const parts = [];
+  if (low) parts.push(`${low} line${low > 1 ? "s" : ""} not read confidently`);
+  if (unmatched) parts.push(`${unmatched} not matched to a product`);
+  if (noCost) parts.push(`${noCost} with no cost`);
+  return { low, unmatched, noCost, note, parts, clean: !parts.length && !note };
+}
+
+function reviewHint(r) {
+  const i = reviewIssues(r);
+  if (i.clean) return "nothing flagged - check the PDF and confirm";
+  const short = [];
+  if (i.low) short.push(`${i.low} unsure`);
+  if (i.unmatched) short.push(`${i.unmatched} unmatched`);
+  if (i.noCost) short.push(`${i.noCost} no cost`);
+  if (i.note) short.push("has a note");
+  return short.join(" · ");
+}
 // needs a human look, then already confirmed.
 function statusRank(status) {
   return status === "uploaded" ? 0 : status === "needs_review" ? 1 : 2;
